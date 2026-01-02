@@ -35,7 +35,7 @@ if [ -z "$1" ] || [ "$1" != '--no-docker' ]; then
   echo -e "\nPushing to Dockerhub"
   docker login
   # Remove old images
-  docker images | grep cubingcontests | tr -s ' ' | cut -d ' ' -f 3 | xargs -tI % docker rmi % --force
+  docker images | grep cubingcontests | tr -s ' ' | cut -d ' ' -f 2 | xargs -tI % docker rmi % --force
   # Client container
   rm client/.env.local
   source .env
