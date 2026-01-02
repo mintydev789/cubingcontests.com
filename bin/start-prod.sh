@@ -19,7 +19,7 @@ fi
 restart_containers() {
   # Remove all images that contain "denimint"
   echo -e "\nRemoving old images...\n"
-  sudo docker images | grep cubingcontests | tr -s ' ' | cut -d ' ' -f 3 | xargs -tI % sudo docker rmi % --force
+  sudo docker images | grep cubingcontests | tr -s ' ' | cut -d ' ' -f 2 | xargs -tI % sudo docker rmi % --force
 
   sudo docker compose -f docker-compose-prod.yml up -d
 }
@@ -97,7 +97,7 @@ else
 
   # Remove old images
   echo -e "\nRemoving old images\n"
-  docker images | grep cubingcontests | tr -s ' ' | cut -d ' ' -f 3 | xargs -tI % docker rmi % --force
+  docker images | grep cubingcontests | tr -s ' ' | cut -d ' ' -f 2 | xargs -tI % docker rmi % --force
 
   if [ "$2" != "--cleanup" ]; then
     # Build frontend and API containers
