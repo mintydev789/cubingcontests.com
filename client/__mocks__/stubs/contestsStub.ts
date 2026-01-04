@@ -7,7 +7,6 @@ function getSchedule(
   eventIds: string[],
 ): Schedule {
   return {
-    competitionId: contest.competitionId,
     venues: [
       {
         id: 1,

@@ -22,6 +22,7 @@ import {
   sendContestFinishedNotification,
   sendContestPublishedNotification,
   sendContestSubmittedNotification,
+  sendEmail,
 } from "~/server/email/mailer.ts";
 import {
   getContestParticipantIds,
@@ -538,6 +539,49 @@ export const openRoundSF = actionClient
       return openedRound;
     },
   );
+
+export const deleteContestSF = actionClient
+  .metadata({ permissions: { competitions: ["delete"], meetups: ["delete"] } })
+  .inputSchema(z.strictObject({ competitionId: z.string() }))
+  .action(async ({ parsedInput: { competitionId } }) => {
+    logMessage("CC0011", `Deleting contest ${competitionId}`);
+
+    const contest = await db.query.contests.findFirst({
+      columns: {
+        competitionId: true,
+        name: true,
+        state: true,
+        type: true,
+        participants: true,
+        queuePosition: true,
+        schedule: true,
+        createdBy: true,
+      },
+      where: { competitionId },
+    });
+    if (!contest) throw new CcActionError(`Contest with ID ${competitionId} not found`);
+    if (contest.participants > 0) throw new CcActionError("You may not remove a contest that has results");
+
+    await db.transaction(async (tx) => {
+      const newCompetitionId = `${competitionId}_REMOVED`;
+
+      await tx
+        .update(table)
+        .set({ state: "removed", competitionId: newCompetitionId, queuePosition: null })
+        .where(eq(table.competitionId, competitionId));
+
+      await tx
+        .update(roundsTable)
+        .set({ competitionId: newCompetitionId, open: false })
+        .where(eq(roundsTable.competitionId, competitionId));
+
+      // This was part of the old Nest JS API
+      // await this.authService.deleteAuthTokens(competitionId);
+    });
+
+    const creatorUser = await db.query.users.findFirst({ columns: { email: true }, where: { id: contest.createdBy! } });
+    if (creatorUser) sendEmail(creatorUser.email, "Contest removed", `Your contest ${contest.name} has been removed.`);
+  });
 
 async function validateAndCleanUpContest(
   contest: ContestDto,

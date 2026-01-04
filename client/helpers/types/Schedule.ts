@@ -1,5 +1,4 @@
 export type Schedule = {
-  competitionId: string;
   venues: Venue[];
 };
 

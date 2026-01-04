@@ -1,6 +1,7 @@
 "use client";
 
 import debounce from "lodash/debounce";
+import { useRouter } from "next/navigation";
 import { useAction } from "next-safe-action/hooks";
 import { useCallback, useContext, useState } from "react";
 import Competitor from "~/app/components/Competitor.tsx";
@@ -45,10 +46,11 @@ function FormPersonInputs({
   redirectToOnAddPerson = "",
   display = "grid",
 }: Props) {
+  const router = useRouter();
+  const { changeErrorMessages, resetMessages } = useContext(MainContext);
+
   // The null element represents the option "add new person" and is only an option given to an admin/moderator
   const defaultMatchedPersons: (PersonResponse | null)[] = addNewPersonMode !== "disabled" ? [null] : [];
-
-  const { changeErrorMessages, resetMessages } = useContext(MainContext);
 
   const { executeAsync: getPersonsByName, isPending: isPendingPersonsByName } = useAction(getPersonsByNameSF);
   const { executeAsync: getOrCreateWcaPerson, isPending: isPendingWcaPerson } = useAction(getOrCreatePersonByWcaIdSF);
@@ -162,9 +164,9 @@ function FormPersonInputs({
         if (addNewPersonMode === "from-new-tab") {
           open("/mod/competitors", "_blank");
         } else if (!redirectToOnAddPerson) {
-          window.location.href = "/mod/competitors";
+          router.push("/mod/competitors");
         } else {
-          window.location.href = `/mod/competitors?redirect=${redirectToOnAddPerson}`;
+          router.push(`/mod/competitors?redirect=${redirectToOnAddPerson}`);
         }
       } else {
         const newSelectedPerson = matchedPersons[selectionIndex];

@@ -3,6 +3,7 @@
 import { faClock, faCopy, faPencil } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAction } from "next-safe-action/hooks";
 import { useContext } from "react";
 import Button from "~/app/components/UI/Button.tsx";
@@ -28,6 +29,7 @@ type Props = {
 } & (ModDashboardProps | ContestDetailsProps);
 
 function ContestControls({ contest, isAdmin = false, forPage, onUpdateContestState }: Props) {
+  const router = useRouter();
   const { changeErrorMessages } = useContext(MainContext);
 
   const { executeAsync: approveContest, isPending: isApproving } = useAction(approveContestSF);
@@ -43,7 +45,7 @@ function ContestControls({ contest, isAdmin = false, forPage, onUpdateContestSta
 
       if (res.serverError || res.validationErrors) changeErrorMessages([getActionError(res)]);
       else if (forPage === "mod-dashboard") onUpdateContestState(contest.competitionId, "approved");
-      else window.location.reload();
+      else router.refresh();
     }
   };
 
@@ -53,7 +55,7 @@ function ContestControls({ contest, isAdmin = false, forPage, onUpdateContestSta
 
       if (res.serverError || res.validationErrors) changeErrorMessages([getActionError(res)]);
       else if (forPage === "mod-dashboard") onUpdateContestState(contest.competitionId, "finished");
-      else window.location.reload();
+      else router.refresh();
     }
   };
 
@@ -63,7 +65,7 @@ function ContestControls({ contest, isAdmin = false, forPage, onUpdateContestSta
 
       if (res.serverError || res.validationErrors) changeErrorMessages([getActionError(res)]);
       else if (forPage === "mod-dashboard") onUpdateContestState(contest.competitionId, "published");
-      else window.location.reload();
+      else router.refresh();
     }
   };
 

@@ -4,6 +4,7 @@ import { addYears, isValid } from "date-fns";
 import { fromZonedTime, getTimezoneOffset, toZonedTime } from "date-fns-tz";
 import debounce from "lodash/debounce";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAction } from "next-safe-action/hooks";
 import { useCallback, useContext, useState, useTransition } from "react";
 import z from "zod";
@@ -37,7 +38,11 @@ import type { SelectContest } from "~/server/db/schema/contests.ts";
 import type { EventResponse } from "~/server/db/schema/events.ts";
 import type { PersonResponse } from "~/server/db/schema/persons.ts";
 import type { RoundResponse } from "~/server/db/schema/rounds.ts";
-import { createContestSF, getTimeZoneFromCoordsSF } from "~/server/serverFunctions/contestServerFunctions.ts";
+import {
+  createContestSF,
+  deleteContestSF,
+  getTimeZoneFromCoordsSF,
+} from "~/server/serverFunctions/contestServerFunctions.ts";
 import {
   getOrCreatePersonByWcaIdSF,
   getOrCreatePersonSF,
@@ -69,7 +74,8 @@ function ContestForm({
   creatorPerson,
   session,
 }: Props) {
-  const { changeErrorMessages, changeSuccessMessage, resetMessages } = useContext(MainContext);
+  const router = useRouter();
+  const { changeErrorMessages, resetMessages } = useContext(MainContext);
 
   const { executeAsync: getPersonById, isPending: isGettingPerson } = useAction(getPersonByIdSF);
   const { executeAsync: getOrCreateWcaPerson, isPending: isGettingOrCreatingWcaPerson } =
@@ -77,6 +83,7 @@ function ContestForm({
   const { executeAsync: getOrCreatePerson, isPending: isGettingOrCreatingPerson } = useAction(getOrCreatePersonSF);
   const { executeAsync: getTimeZoneFromCoords, isPending: isPendingTimeZone } = useAction(getTimeZoneFromCoordsSF);
   const { executeAsync: createContest, isPending: isCreating } = useAction(createContestSF);
+  const { executeAsync: deleteContest, isPending: isDeleting } = useAction(deleteContestSF);
   const [activeTab, setActiveTab] = useState("details");
   const [detailsImported, setDetailsImported] = useState(mode === "edit" && contest?.type === "wca-comp");
   const [queueEnabled, setQueueEnabled] = useState(contest?.queuePosition !== undefined);
@@ -153,6 +160,7 @@ function ContestForm({
   const isAdmin = getIsAdmin(session.user.role);
   const isPending =
     isCreating ||
+    isDeleting ||
     isPendingTimeZone ||
     isPendingWcaCompDetails ||
     isGettingOrCreatingWcaPerson ||
@@ -174,7 +182,6 @@ function ContestForm({
 
     if (getIsCompType(type)) {
       schedule = {
-        competitionId,
         venues: [
           {
             id: 1,
@@ -429,29 +436,28 @@ function ContestForm({
   };
 
   const unfinishContest = async () => {
-    const answer = confirm(`Are you sure you would like to set ${contest!.name} back to ongoing?`);
+    throw new Error("NOT IMPLEMENTED!");
+    // const answer = confirm(`Are you sure you would like to set ${contest!.name} back to ongoing?`);
 
-    if (answer) {
-      const res = await myFetch.patch(
-        `/competitions/set-state/${competitionId}`,
-        { newState: "ongoing" },
-        { loadingId: "unfinish_contest_button", keepLoadingOnSuccess: true },
-      );
+    // if (answer) {
+    //   const res = await myFetch.patch(
+    //     `/competitions/set-state/${competitionId}`,
+    //     { newState: "ongoing" },
+    //     { loadingId: "unfinish_contest_button", keepLoadingOnSuccess: true },
+    //   );
 
-      if (res.success) window.history.back();
-    }
+    //   if (res.success) window.history.back();
+    // }
   };
 
-  const removeContest = async () => {
+  const onDeleteContest = async () => {
     const answer = confirm(`Are you sure you would like to remove ${contest!.name}?`);
 
     if (answer) {
-      const res = await myFetch.delete(`/competitions/${competitionId}`, {
-        loadingId: "delete_contest_button",
-        keepLoadingOnSuccess: true,
-      });
+      const res = await deleteContest({ competitionId });
 
-      if (res.success) window.history.back();
+      if (res.serverError || res.validationErrors) changeErrorMessages([getActionError(res)]);
+      else router.push("/mod");
     }
   };
 
@@ -560,9 +566,8 @@ function ContestForm({
                         </Button>
                       )}
                       <Button
-                        id="delete_contest_button"
-                        onClick={removeContest}
-                        // loadingId={loadingId}
+                        onClick={onDeleteContest}
+                        isLoading={isDeleting}
                         disabled={isPending || contest.participants > 0}
                         className="btn-danger"
                       >
@@ -902,8 +907,8 @@ function ContestForm({
             {type === "comp" && (
               <>
                 <p className="fs-6 mt-4">
-                  This is an unofficial competition, which means that you must provide at least two photos of the
-                  setup (i.e. scrambling area, competition area, etc.) in the contest finished email thread after the
+                  This is an unofficial competition, which means that you must provide at least two photos of the setup
+                  (i.e. scrambling area, competition area, etc.) in the contest finished email thread after the
                   competition, in accordance with rule U2.
                 </p>
                 <FormCheckbox

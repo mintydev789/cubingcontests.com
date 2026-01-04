@@ -97,7 +97,6 @@ const VenueValidator = z.strictObject({
 });
 
 const ScheduleValidator = z.strictObject({
-  competitionId: z.string().nonempty(),
   venues: z
     .array(VenueValidator)
     .nonempty({ error: "Please create at least one venue" })

@@ -7,7 +7,7 @@ import { accountsTable, usersTable } from "~/server/db/schema/auth-schema.ts";
 import { collectiveSolutionsTable } from "~/server/db/schema/collective-solutions.ts";
 import { getSuperRegion } from "./helpers/Countries.ts";
 import { C } from "./helpers/constants.ts";
-import type { Schedule } from "./helpers/types/Schedule.ts";
+import type { Schedule, Venue } from "./helpers/types/Schedule.ts";
 import { type ContestState, type ContestType, RecordTypeValues } from "./helpers/types.ts";
 import { contestsTable } from "./server/db/schema/contests.ts";
 import { eventsTable } from "./server/db/schema/events.ts";
@@ -385,25 +385,24 @@ export async function register() {
       try {
         await db.transaction(async (tx) => {
           for (const c of contestsDump) {
-            const schedule: Schedule = schedulesDump.find((s: any) => s.competitionId === c.competitionId);
+            const dumpScheduleObject = schedulesDump.find((s: any) => s.competitionId === c.competitionId);
+            let schedule: Schedule | null = null;
 
-            if (schedule) {
-              delete (schedule as any)._id;
-              delete (schedule as any).createdAt;
-              delete (schedule as any).updatedAt;
-              delete (schedule as any).__v;
-              schedule.venues = schedule.venues.map((v) => ({
-                ...v,
-                rooms: v.rooms.map((r) => ({
-                  ...r,
-                  color: `#${r.color[0]}${r.color[0]}${r.color[1]}${r.color[1]}${r.color[2]}${r.color[2]}`,
-                  activities: r.activities.map((a: any) => ({
-                    ...a,
-                    startTime: new Date(a.startTime.$date),
-                    endTime: new Date(a.endTime.$date),
+            if (dumpScheduleObject) {
+              schedule = {
+                venues: dumpScheduleObject.venues.map((v: Venue) => ({
+                  ...v,
+                  rooms: v.rooms.map((r) => ({
+                    ...r,
+                    color: `#${r.color[0]}${r.color[0]}${r.color[1]}${r.color[1]}${r.color[2]}${r.color[2]}`,
+                    activities: r.activities.map((a: any) => ({
+                      ...a,
+                      startTime: new Date(a.startTime.$date),
+                      endTime: new Date(a.endTime.$date),
+                    })),
                   })),
                 })),
-              }));
+              };
             } else if (c.type !== 1) {
               console.error("COMPETITION WITHOUT SCHEDULE FOUND (skipping insertion): ", c.competitionId);
               continue;
@@ -441,7 +440,7 @@ export async function register() {
               competitorLimit: c.competitorLimit ?? null,
               participants: c.participants,
               queuePosition: c.queuePosition ?? null,
-              schedule: schedule ?? null,
+              schedule,
               createdBy: getUserId(c.createdBy.$oid),
               createdAt: new Date(c.createdAt.$date),
               updatedAt: new Date(c.updatedAt.$date),
