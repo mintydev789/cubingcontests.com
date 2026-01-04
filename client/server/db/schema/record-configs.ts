@@ -1,5 +1,5 @@
 import "server-only";
-import { getTableColumns } from "drizzle-orm";
+import { getColumns } from "drizzle-orm";
 import { boolean, integer, text, varchar } from "drizzle-orm/pg-core";
 import { RecordCategoryValues, RecordTypeValues } from "~/helpers/types.ts";
 import { ccSchema } from "~/server/db/schema/schema.ts";
@@ -22,7 +22,7 @@ export const recordConfigsTable = ccSchema.table("record_configs", {
 export type InsertRecordConfig = typeof recordConfigsTable.$inferInsert;
 export type SelectRecordConfig = typeof recordConfigsTable.$inferSelect;
 
-const { createdAt: _, updatedAt: _1, ...recordConfigsPublicCols } = getTableColumns(recordConfigsTable);
+const { createdAt: _, updatedAt: _1, ...recordConfigsPublicCols } = getColumns(recordConfigsTable);
 export { recordConfigsPublicCols };
 
 export type RecordConfigResponse = Pick<SelectRecordConfig, keyof typeof recordConfigsPublicCols>;

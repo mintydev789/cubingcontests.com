@@ -1,6 +1,6 @@
 import "server-only";
 import { boolean, integer, text, uniqueIndex } from "drizzle-orm/pg-core";
-import { getTableColumns } from "drizzle-orm/utils";
+import { getColumns } from "drizzle-orm/utils";
 import { EventCategoryValues, EventFormatValues, RoundFormatValues } from "~/helpers/types.ts";
 import { ccSchema } from "~/server/db/schema/schema.ts";
 import { tableTimestamps } from "../dbUtils.ts";
@@ -39,7 +39,7 @@ const {
   createdAt: _1,
   updatedAt: _2,
   ...eventsPublicCols
-} = getTableColumns(eventsTable);
+} = getColumns(eventsTable);
 export { eventsPublicCols };
 
 export type EventResponse = Pick<SelectEvent, keyof typeof eventsPublicCols>;

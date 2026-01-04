@@ -1,5 +1,5 @@
 import "server-only";
-import { getTableColumns } from "drizzle-orm";
+import { getColumns } from "drizzle-orm";
 import { boolean, integer, text, varchar } from "drizzle-orm/pg-core";
 import { usersTable } from "~/server/db/schema/auth-schema.ts";
 import { ccSchema } from "~/server/db/schema/schema.ts";
@@ -27,7 +27,7 @@ const {
   createdAt: _2,
   updatedAt: _3,
   ...personsPublicCols
-} = getTableColumns(personsTable);
+} = getColumns(personsTable);
 export { personsPublicCols };
 
 export type PersonResponse = Pick<SelectPerson, keyof typeof personsPublicCols>;

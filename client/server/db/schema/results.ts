@@ -1,7 +1,7 @@
 import "server-only";
 import { sql } from "drizzle-orm";
 import { bigint, boolean, check, integer, jsonb, text, timestamp } from "drizzle-orm/pg-core";
-import { getTableColumns } from "drizzle-orm/utils";
+import { getColumns } from "drizzle-orm/utils";
 import { recordCategoryEnum, recordTypeEnum } from "~/server/db/schema/record-configs.ts";
 import { ccSchema } from "~/server/db/schema/schema.ts";
 import { tableTimestamps } from "../dbUtils.ts";
@@ -85,7 +85,7 @@ const {
   createdAt: _2,
   updatedAt: _3,
   ...resultsPublicCols
-} = getTableColumns(resultsTable);
+} = getColumns(resultsTable);
 export { resultsPublicCols };
 
 export type ResultResponse = Pick<SelectResult, keyof typeof resultsPublicCols>;

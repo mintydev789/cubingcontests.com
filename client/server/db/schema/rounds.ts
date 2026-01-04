@@ -1,5 +1,5 @@
 import "server-only";
-import { getTableColumns, sql } from "drizzle-orm";
+import { getColumns, sql } from "drizzle-orm";
 import { boolean, check, integer, smallint, text } from "drizzle-orm/pg-core";
 import { RoundProceedValues, RoundTypeValues } from "~/helpers/types.ts";
 import { ccSchema } from "~/server/db/schema/schema.ts";
@@ -51,7 +51,7 @@ export const roundsTable = ccSchema.table(
 export type InsertRound = typeof roundsTable.$inferInsert;
 export type SelectRound = typeof roundsTable.$inferSelect;
 
-const { createdAt: _, updatedAt: _1, ...roundsPublicCols } = getTableColumns(roundsTable);
+const { createdAt: _, updatedAt: _1, ...roundsPublicCols } = getColumns(roundsTable);
 export { roundsPublicCols };
 
 export type RoundResponse = Pick<SelectRound, keyof typeof roundsPublicCols>;

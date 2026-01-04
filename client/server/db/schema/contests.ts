@@ -1,5 +1,5 @@
 import "server-only";
-import { getTableColumns, sql } from "drizzle-orm";
+import { getColumns, sql } from "drizzle-orm";
 import { check, integer, jsonb, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/pg-core";
 import type { Schedule } from "~/helpers/types/Schedule.ts";
 import { ContestStateValues, ContestTypeValues } from "~/helpers/types.ts";
@@ -71,7 +71,7 @@ const {
   createdAt: _2,
   updatedAt: _3,
   ...contestsPublicCols
-} = getTableColumns(contestsTable);
+} = getColumns(contestsTable);
 export { contestsPublicCols };
 
 export type ContestResponse = Pick<SelectContest, keyof typeof contestsPublicCols>;
