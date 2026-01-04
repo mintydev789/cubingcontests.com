@@ -3,7 +3,8 @@ import type fsType from "node:fs";
 import { eq, sql } from "drizzle-orm";
 import type { auth as authType } from "~/server/auth.ts";
 import type { db as dbType } from "~/server/db/provider.ts";
-import { accounts as accountsTable, users as usersTable } from "~/server/db/schema/auth-schema.ts";
+import { accountsTable, usersTable } from "~/server/db/schema/auth-schema.ts";
+import { collectiveSolutionsTable } from "~/server/db/schema/collective-solutions.ts";
 import { getSuperRegion } from "./helpers/Countries.ts";
 import { C } from "./helpers/constants.ts";
 import type { Schedule } from "./helpers/types/Schedule.ts";
@@ -51,15 +52,15 @@ const message =
 export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs") {
     const { db }: { db: typeof dbType } = await import("~/server/db/provider.ts");
-    
+
     // Migrate DB data, if env var is set
-    if (process.env.MIGRATE_DB === "true") return;
+    if (process.env.MIGRATE_DB !== "true") return;
 
     const fs: typeof fsType = await import("node:fs");
     const { randomUUID }: { randomUUID: typeof randomUUIDType } = await import("node:crypto");
     const { auth }: { auth: typeof authType } = await import("~/server/auth.ts");
     const usersDump = JSON.parse(fs.readFileSync("./dump/users.json") as any) as any[];
-    const personsDump = (JSON.parse(fs.readFileSync("./dump/people.json") as any) as any[]).reverse();
+    const personsDump = JSON.parse(fs.readFileSync("./dump/people.json") as any) as any[];
     const contestsDump = JSON.parse(fs.readFileSync("./dump/competitions.json") as any) as any[];
     const roundsDump = JSON.parse(fs.readFileSync("./dump/rounds.json") as any) as any[];
 
@@ -96,38 +97,40 @@ export async function register() {
       console.log("Seeding users...");
 
       try {
-        for (const user of usersDump.filter((u: any) => !u.confirmationCodeHash)) {
-          const username = user.username.slice(0, 30);
-          if (username !== user.username)
-            console.warn(`Username ${user.username} is too long, truncating to ${username}`);
+        await db.transaction(async (tx) => {
+          for (const user of usersDump.filter((u: any) => !u.confirmationCodeHash)) {
+            const username = user.username.slice(0, 30);
+            if (username !== user.username)
+              console.warn(`Username ${user.username} is too long, truncating to ${username}`);
 
-          const res = await auth.api.signUpEmail({
-            body: {
-              email: user.email,
-              username,
-              displayUsername: user.username,
-              // Resetting all passwords due to hashing algorithm change (further encrypted by scrypt)
-              password: randomUUID(),
-              personId: user.personId,
-              name: user.username,
-            },
-          });
+            const res = await auth.api.signUpEmail({
+              body: {
+                email: user.email,
+                username,
+                displayUsername: user.username,
+                // Resetting all passwords due to hashing algorithm change (further encrypted by scrypt)
+                password: randomUUID(),
+                personId: user.personId,
+                name: user.username,
+              },
+            });
 
-          await db
-            .update(usersTable)
-            .set({
-              emailVerified: true,
-              role: user.roles.includes("admin") ? "admin" : user.roles.includes("mod") ? "mod" : "user",
-              createdAt: new Date(user.createdAt.$date),
-              updatedAt: new Date(user.updatedAt.$date),
-            })
-            .where(eq(usersTable.id, res.user.id));
+            await tx
+              .update(usersTable)
+              .set({
+                emailVerified: true,
+                role: user.roles.includes("admin") ? "admin" : user.roles.includes("mod") ? "mod" : "user",
+                createdAt: new Date(user.createdAt.$date),
+                updatedAt: new Date(user.updatedAt.$date),
+              })
+              .where(eq(usersTable.id, res.user.id));
 
-          await db
-            .update(accountsTable)
-            .set({ createdAt: new Date(user.createdAt.$date), updatedAt: new Date(user.updatedAt.$date) })
-            .where(eq(accountsTable.userId, res.user.id));
-        }
+            await tx
+              .update(accountsTable)
+              .set({ createdAt: new Date(user.createdAt.$date), updatedAt: new Date(user.updatedAt.$date) })
+              .where(eq(accountsTable.userId, res.user.id));
+          }
+        });
       } catch (e) {
         console.error("Unable to load users dump:", e);
       }
@@ -150,40 +153,46 @@ export async function register() {
       console.log("Seeding persons...");
 
       try {
-        let tempPersons = [];
+        await db.transaction(async (tx) => {
+          let tempPersons = [];
 
-        for (const p of personsDump) {
-          const createdBy = p.createdBy ? getUserId(p.createdBy.$oid) : null;
-          tempPersons.push(
-            `(${p.personId}, '${p.name.replaceAll("'", "''")}', ${p.localizedName ? `'${p.localizedName.replaceAll("'", "''")}'` : "NULL"}, '${p.countryIso2}', ${p.wcaId ? `'${p.wcaId}'` : "NULL"}, ${!p.unapproved}, ${createdBy ? `'${createdBy}'` : "NULL"}, ${!p.createdBy}, '${p.createdAt.$date}', '${p.updatedAt.$date}')`,
+          for (const p of personsDump) {
+            const createdBy = p.createdBy ? getUserId(p.createdBy.$oid) : null;
+            tempPersons.push(
+              `(${p.personId}, '${p.name.replaceAll("'", "''")}', ${p.localizedName ? `'${p.localizedName.replaceAll("'", "''")}'` : "NULL"}, '${p.countryIso2}', ${p.wcaId ? `'${p.wcaId}'` : "NULL"}, ${!p.unapproved}, ${createdBy ? `'${createdBy}'` : "NULL"}, ${!p.createdBy}, '${p.createdAt.$date}', '${p.updatedAt.$date}')`,
+            );
+
+            // Drizzle can't handle too many entries being inserted at once
+            if (tempPersons.length === 100) {
+              await tx.execute(
+                sql.raw(
+                  `INSERT INTO ${process.env.CC_DB_SCHEMA}.persons (id, name, localized_name, region_code, wca_id, approved, created_by, created_externally, created_at, updated_at) 
+                 OVERRIDING SYSTEM VALUE VALUES ${tempPersons.join(", ")}`,
+                ),
+              );
+              tempPersons = [];
+            }
+          }
+
+          await tx.execute(
+            sql.raw(
+              `INSERT INTO ${process.env.CC_DB_SCHEMA}.persons (id, name, localized_name, region_code, wca_id, approved, created_by, created_externally, created_at, updated_at) 
+             OVERRIDING SYSTEM VALUE VALUES ${tempPersons.join(", ")}`,
+            ),
           );
 
-          // Drizzle can't handle too many entries being inserted at once
-          if (tempPersons.length === 100) {
-            await db.execute(
-              sql.raw(
-                `INSERT INTO persons (id, name, localized_name, region_code, wca_id, approved, created_by, created_externally, created_at, updated_at) 
-                 OVERRIDING SYSTEM VALUE VALUES ${tempPersons.join(", ")}`,
-              ),
-            );
-            tempPersons = [];
-          }
-        }
-
-        await db.execute(
-          sql.raw(
-            `INSERT INTO persons (id, name, localized_name, region_code, wca_id, approved, created_by, created_externally, created_at, updated_at) 
-             OVERRIDING SYSTEM VALUE VALUES ${tempPersons.join(", ")}`,
-          ),
-        );
+          await tx.execute(
+            sql.raw(
+              `ALTER SEQUENCE ${process.env.CC_DB_SCHEMA}.persons_id_seq RESTART WITH ${personsDump.at(-1)!.personId + 1};`,
+            ),
+          );
+        });
       } catch (e) {
         console.error("Unable to load persons dump:", e);
       }
     }
 
     const persons = await db.select().from(personsTable).orderBy(personsTable.id);
-
-    await db.execute(sql.raw(`ALTER SEQUENCE persons_id_seq RESTART WITH ${persons.at(-1)!.id + 1};`));
 
     if ((await db.select({ id: eventsTable.id }).from(eventsTable).limit(1)).length === 0) {
       console.log("Seeding events...");
@@ -234,44 +243,46 @@ export async function register() {
       let tempRounds: any[] = [];
 
       try {
-        for (const r of roundsDump) {
-          const [eventId, roundNumberStr] = r.roundId.split("-r");
+        await db.transaction(async (tx) => {
+          for (const r of roundsDump) {
+            const [eventId, roundNumberStr] = r.roundId.split("-r");
 
-          if (
-            r.timeLimit &&
-            r.timeLimit.cumulativeRoundIds.length > 0 &&
-            (r.timeLimit.cumulativeRoundIds.length > 1 || r.timeLimit.cumulativeRoundIds[0] !== r.roundId)
-          )
-            console.error(
-              `Round time limit cumulative round IDs contain error: ${JSON.stringify({ ...r, results: [] }, null, 2)}`,
-            );
+            if (
+              r.timeLimit &&
+              r.timeLimit.cumulativeRoundIds.length > 0 &&
+              (r.timeLimit.cumulativeRoundIds.length > 1 || r.timeLimit.cumulativeRoundIds[0] !== r.roundId)
+            )
+              console.error(
+                `Round time limit cumulative round IDs contain error: ${JSON.stringify({ ...r, results: [] }, null, 2)}`,
+              );
 
-          tempRounds.push({
-            competitionId: r.competitionId,
-            eventId,
-            roundNumber: parseInt(roundNumberStr, 10),
-            roundTypeId: r.roundTypeId,
-            format: r.format,
-            timeLimitCentiseconds: r.timeLimit?.centiseconds ?? null,
-            timeLimitCumulativeRoundIds:
-              r.timeLimit?.cumulativeRoundIds && r.timeLimit.cumulativeRoundIds.length > 0 ? [] : null,
-            cutoffAttemptResult: r.cutoff?.attemptResult ?? null,
-            cutoffNumberOfAttempts: r.cutoff?.numberOfAttempts ?? null,
-            proceedType: r.proceed?.type === 1 ? "percentage" : r.proceed?.type === 2 ? "number" : null,
-            proceedValue: r.proceed?.value ?? null,
-            open: !!r.open,
-            createdAt: new Date(r.createdAt.$date),
-            updatedAt: new Date(r.updatedAt.$date),
-          });
+            tempRounds.push({
+              competitionId: r.competitionId,
+              eventId,
+              roundNumber: parseInt(roundNumberStr, 10),
+              roundTypeId: r.roundTypeId,
+              format: r.format,
+              timeLimitCentiseconds: r.timeLimit?.centiseconds ?? null,
+              timeLimitCumulativeRoundIds:
+                r.timeLimit?.cumulativeRoundIds && r.timeLimit.cumulativeRoundIds.length > 0 ? [] : null,
+              cutoffAttemptResult: r.cutoff?.attemptResult ?? null,
+              cutoffNumberOfAttempts: r.cutoff?.numberOfAttempts ?? null,
+              proceedType: r.proceed?.type === 1 ? "percentage" : r.proceed?.type === 2 ? "number" : null,
+              proceedValue: r.proceed?.value ?? null,
+              open: !!r.open,
+              createdAt: new Date(r.createdAt.$date),
+              updatedAt: new Date(r.updatedAt.$date),
+            });
 
-          // Drizzle can't handle too many entries being inserted at once
-          if (tempRounds.length === 1000) {
-            await db.insert(roundsTable).values(tempRounds);
-            tempRounds = [];
+            // Drizzle can't handle too many entries being inserted at once
+            if (tempRounds.length === 1000) {
+              await tx.insert(roundsTable).values(tempRounds);
+              tempRounds = [];
+            }
           }
-        }
 
-        await db.insert(roundsTable).values(tempRounds);
+          await tx.insert(roundsTable).values(tempRounds);
+        });
       } catch (e) {
         console.error("Unable to load rounds dump:", e);
       }
@@ -302,53 +313,54 @@ export async function register() {
       console.log("Seeding results...");
 
       const resultsDump = JSON.parse(fs.readFileSync("./dump/results.json") as any);
-      let tempResults = [];
+      let tempResults: InsertResult[] = [];
 
       try {
-        for (const r of resultsDump) {
-          // Copied from results server functions
-          const participants = persons.filter((p) => r.personIds.includes(p.id));
-          const isSameRegionParticipants = participants.every((p) => p.regionCode === participants[0].regionCode);
-          const firstParticipantSuperRegion = getSuperRegion(participants[0].regionCode);
-          const isSameSuperRegionParticipants =
-            isSameRegionParticipants ||
-            participants.slice(1).every((p) => getSuperRegion(p.regionCode) === firstParticipantSuperRegion);
-          const contest = r.competitionId ? contestsDump.find((c) => c.competitionId === r.competitionId) : undefined;
+        await db.transaction(async (tx) => {
+          for (const r of resultsDump) {
+            // Copied from results server functions
+            const participants = persons.filter((p) => r.personIds.includes(p.id));
+            const isSameRegionParticipants = participants.every((p) => p.regionCode === participants[0].regionCode);
+            const firstParticipantSuperRegion = getSuperRegion(participants[0].regionCode);
+            const isSameSuperRegionParticipants =
+              isSameRegionParticipants ||
+              participants.slice(1).every((p) => getSuperRegion(p.regionCode) === firstParticipantSuperRegion);
+            const contest = r.competitionId ? contestsDump.find((c) => c.competitionId === r.competitionId) : undefined;
 
-          tempResults.push({
-            eventId: r.eventId,
-            date: new Date(r.date.$date),
-            approved: !r.unapproved,
-            personIds: r.personIds,
-            regionCode: isSameRegionParticipants ? participants[0].regionCode : null,
-            superRegionCode: isSameSuperRegionParticipants ? firstParticipantSuperRegion : null,
-            attempts: r.attempts,
-            best: r.best,
-            average: r.average,
-            recordCategory: contest ? (contest.type === 1 ? "meetups" : "competitions") : "video-based-results",
-            regionalSingleRecord: r.regionalSingleRecord ?? null,
-            regionalAverageRecord: r.regionalAverageRecord ?? null,
-            competitionId: r.competitionId ?? null,
-            roundId: r.competitionId ? getRoundId(r._id.$oid) : null,
-            ranking: r.ranking ?? null,
-            proceeds: r.proceeds ?? null,
-            videoLink: r.competitionId ? null : r.videoLink || "",
-            discussionLink: r.competitionId ? null : r.discussionLink || null,
-            // FIX THESE TWO FIELDS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            createdBy: r.createdBy ? getUserId(r) : null,
-            createdExternally: false,
-            createdAt: new Date(r.createdAt.$date),
-            updatedAt: new Date(r.updatedAt.$date),
-          } satisfies InsertResult);
+            tempResults.push({
+              eventId: r.eventId,
+              date: new Date(r.date.$date),
+              approved: !r.unapproved,
+              personIds: r.personIds,
+              regionCode: isSameRegionParticipants ? participants[0].regionCode : null,
+              superRegionCode: isSameSuperRegionParticipants ? firstParticipantSuperRegion : null,
+              attempts: r.attempts,
+              best: r.best,
+              average: r.average,
+              recordCategory: contest ? (contest.type === 1 ? "meetups" : "competitions") : "video-based-results",
+              regionalSingleRecord: r.regionalSingleRecord ?? null,
+              regionalAverageRecord: r.regionalAverageRecord ?? null,
+              competitionId: r.competitionId ?? null,
+              roundId: r.competitionId ? getRoundId(r._id.$oid) : null,
+              ranking: r.ranking ?? null,
+              proceeds: r.proceeds ?? null,
+              videoLink: r.competitionId ? null : r.videoLink || "",
+              discussionLink: r.competitionId ? null : r.discussionLink || null,
+              createdBy: r.createdBy ? getUserId(r.createdBy.$oid) : null,
+              createdExternally: false,
+              createdAt: new Date(r.createdAt.$date),
+              updatedAt: new Date(r.updatedAt.$date),
+            });
 
-          // Drizzle can't handle too many entries being inserted at once
-          if (tempResults.length === 1000) {
-            await db.insert(resultsTable).values(tempResults);
-            tempResults = [];
+            // Drizzle can't handle too many entries being inserted at once
+            if (tempResults.length === 1000) {
+              await tx.insert(resultsTable).values(tempResults);
+              tempResults = [];
+            }
           }
-        }
 
-        await db.insert(resultsTable).values(tempResults);
+          await tx.insert(resultsTable).values(tempResults);
+        });
       } catch (e) {
         console.error("Unable to load results dump:", e);
       }
@@ -371,83 +383,105 @@ export async function register() {
       };
 
       try {
-        for (const c of contestsDump) {
-          const schedule: Schedule = schedulesDump.find((s: any) => s.competitionId === c.competitionId);
+        await db.transaction(async (tx) => {
+          for (const c of contestsDump) {
+            const schedule: Schedule = schedulesDump.find((s: any) => s.competitionId === c.competitionId);
 
-          if (schedule) {
-            delete (schedule as any)._id;
-            delete (schedule as any).createdAt;
-            delete (schedule as any).updatedAt;
-            delete (schedule as any).__v;
-            schedule.venues = schedule.venues.map((v) => ({
-              ...v,
-              rooms: v.rooms.map((r) => ({
-                ...r,
-                color: `#${r.color[0]}${r.color[0]}${r.color[1]}${r.color[1]}${r.color[2]}${r.color[2]}`,
-                activities: r.activities.map((a: any) => ({
-                  ...a,
-                  startTime: new Date(a.startTime.$date),
-                  endTime: new Date(a.endTime.$date),
+            if (schedule) {
+              delete (schedule as any)._id;
+              delete (schedule as any).createdAt;
+              delete (schedule as any).updatedAt;
+              delete (schedule as any).__v;
+              schedule.venues = schedule.venues.map((v) => ({
+                ...v,
+                rooms: v.rooms.map((r) => ({
+                  ...r,
+                  color: `#${r.color[0]}${r.color[0]}${r.color[1]}${r.color[1]}${r.color[2]}${r.color[2]}`,
+                  activities: r.activities.map((a: any) => ({
+                    ...a,
+                    startTime: new Date(a.startTime.$date),
+                    endTime: new Date(a.endTime.$date),
+                  })),
                 })),
-              })),
-            }));
-          } else if (c.type !== 1) {
-            console.error("COMPETITION WITHOUT SCHEDULE FOUND (skipping insertion): ", c.competitionId);
-            continue;
+              }));
+            } else if (c.type !== 1) {
+              console.error("COMPETITION WITHOUT SCHEDULE FOUND (skipping insertion): ", c.competitionId);
+              continue;
+            }
+
+            tempContests.push({
+              competitionId: c.competitionId,
+              state: (c.state === 10
+                ? "created"
+                : c.state === 20
+                  ? "approved"
+                  : c.state === 30
+                    ? "ongoing"
+                    : c.state === 40
+                      ? "finished"
+                      : c.state === 50
+                        ? "published"
+                        : "removed") as ContestState,
+              name: c.name,
+              shortName: c.shortName,
+              type: (c.type === 1 ? "meetup" : c.type === 2 ? "wca-comp" : "comp") satisfies ContestType,
+              city: c.city,
+              regionCode: c.countryIso2,
+              venue: c.venue,
+              address: c.address,
+              latitudeMicrodegrees: c.latitudeMicrodegrees,
+              longitudeMicrodegrees: c.longitudeMicrodegrees,
+              startDate: new Date(c.startDate.$date),
+              endDate: c.endDate ? new Date(c.endDate.$date) : new Date(c.startDate.$date),
+              startTime: c.meetupDetails ? new Date(c.meetupDetails.startTime.$date) : null,
+              timezone: c.meetupDetails?.timeZone ?? null,
+              organizerIds: c.organizers.map((o: any) => getPersonId(o.$oid)),
+              contact: c.contact ?? null,
+              description: c.description,
+              competitorLimit: c.competitorLimit ?? null,
+              participants: c.participants,
+              queuePosition: c.queuePosition ?? null,
+              schedule: schedule ?? null,
+              createdBy: getUserId(c.createdBy.$oid),
+              createdAt: new Date(c.createdAt.$date),
+              updatedAt: new Date(c.updatedAt.$date),
+            });
+
+            // Drizzle can't handle too many entries being inserted at once
+            if (tempContests.length === 500) {
+              await tx.insert(contestsTable).values(tempContests);
+              tempContests = [];
+            }
           }
 
-          tempContests.push({
-            competitionId: c.competitionId,
-            state: (c.state === 10
-              ? "created"
-              : c.state === 20
-                ? "approved"
-                : c.state === 30
-                  ? "ongoing"
-                  : c.state === 40
-                    ? "finished"
-                    : c.state === 50
-                      ? "published"
-                      : "removed") as ContestState,
-            name: c.name,
-            shortName: c.shortName,
-            type: (c.type === 1 ? "meetup" : c.type === 2 ? "wca-comp" : "comp") satisfies ContestType,
-            city: c.city,
-            regionCode: c.countryIso2,
-            venue: c.venue,
-            address: c.address,
-            latitudeMicrodegrees: c.latitudeMicrodegrees,
-            longitudeMicrodegrees: c.longitudeMicrodegrees,
-            startDate: new Date(c.startDate.$date),
-            endDate: c.endDate ? new Date(c.endDate.$date) : new Date(c.startDate.$date),
-            startTime: c.meetupDetails ? new Date(c.meetupDetails.startTime.$date) : null,
-            timezone: c.meetupDetails?.timeZone ?? null,
-            organizerIds: c.organizers.map((o: any) => getPersonId(o.$oid)),
-            contact: c.contact ?? null,
-            description: c.description,
-            competitorLimit: c.competitorLimit ?? null,
-            participants: c.participants,
-            queuePosition: c.queuePosition ?? null,
-            schedule: schedule ?? null,
-            createdBy: getUserId(c.createdBy.$oid),
-            createdAt: new Date(c.createdAt.$date),
-            updatedAt: new Date(c.updatedAt.$date),
-          });
-
-          // Drizzle can't handle too many entries being inserted at once
-          if (tempContests.length === 500) {
-            await db.insert(contestsTable).values(tempContests);
-            tempContests = [];
-          }
-        }
-
-        await db.insert(contestsTable).values(tempContests);
+          await tx.insert(contestsTable).values(tempContests);
+        });
       } catch (e) {
         console.error("Unable to load contests dump:", e);
       }
     }
 
-    // TO-DO: ADD COLLECTIVE SOLUTIONS MIGRATION!!!
+    if ((await db.select({ id: collectiveSolutionsTable.id }).from(collectiveSolutionsTable).limit(1)).length === 0) {
+      console.log("Seeding collective solutions...");
+
+      try {
+        const collectiveSolutionsDump = JSON.parse(fs.readFileSync("./dump/collectivesolutions.json") as any);
+
+        await db.insert(collectiveSolutionsTable).values(
+          collectiveSolutionsDump.map((cs: any) => ({
+            eventId: cs.eventId,
+            attemptNumber: cs.attemptNumber,
+            state: cs.state === 10 ? "ongoing" : cs.state === 20 ? "solved" : "archived",
+            scramble: cs.scramble,
+            solution: cs.solution,
+            lastUserWhoInteracted: getUserId(cs.lastUserWhoInteracted.$oid),
+            usersWhoMadeMoves: cs.usersWhoMadeMoves.map((u: any) => getUserId(u.$oid)),
+          })),
+        );
+      } catch (e) {
+        console.error("Unable to load collective solutions dump:", e);
+      }
+    }
 
     if ((await db.select({ id: recordConfigsTable.id }).from(recordConfigsTable).limit(1)).length === 0) {
       console.log("Seeding record configs...");

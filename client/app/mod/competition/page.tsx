@@ -4,7 +4,7 @@ import type { Creator } from "~/helpers/types.ts";
 import { getIsAdmin } from "~/helpers/utilityFunctions.ts";
 import { creatorCols } from "~/server/db/dbUtils.ts";
 import { db } from "~/server/db/provider.ts";
-import { users as usersTable } from "~/server/db/schema/auth-schema.ts";
+import { usersTable } from "~/server/db/schema/auth-schema.ts";
 import { eventsPublicCols, eventsTable } from "~/server/db/schema/events.ts";
 import { type PersonResponse, personsPublicCols, personsTable } from "~/server/db/schema/persons.ts";
 import { resultsTable } from "~/server/db/schema/results.ts";

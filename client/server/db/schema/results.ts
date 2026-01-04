@@ -1,10 +1,11 @@
 import "server-only";
 import { sql } from "drizzle-orm";
-import { bigint, boolean, check, integer, jsonb, pgTable as table, text, timestamp } from "drizzle-orm/pg-core";
+import { bigint, boolean, check, integer, jsonb, text, timestamp } from "drizzle-orm/pg-core";
 import { getTableColumns } from "drizzle-orm/utils";
 import { recordCategoryEnum, recordTypeEnum } from "~/server/db/schema/record-configs.ts";
+import { ccSchema } from "~/server/db/schema/schema.ts";
 import { tableTimestamps } from "../dbUtils.ts";
-import { users as usersTable } from "./auth-schema.ts";
+import { usersTable } from "./auth-schema.ts";
 import type { SelectContest } from "./contests.ts";
 import type { SelectEvent } from "./events.ts";
 import type { SelectPerson } from "./persons.ts";
@@ -24,7 +25,7 @@ export type Attempt = {
   memo?: number;
 };
 
-export const resultsTable = table(
+export const resultsTable = ccSchema.table(
   "results",
   {
     id: integer().primaryKey().generatedAlwaysAsIdentity(),
@@ -46,6 +47,7 @@ export const resultsTable = table(
     proceeds: boolean(), // only used for contest results from non-final rounds
     videoLink: text(), // only used for video-based results
     discussionLink: text(), // only used for video-based results (also optional for those)
+    // Before the big update, createdExternally wasn't a column, and createdBy was only set for video-based results
     createdBy: text().references(() => usersTable.id, { onDelete: "set null" }),
     createdExternally: boolean().default(false).notNull(),
     ...tableTimestamps,

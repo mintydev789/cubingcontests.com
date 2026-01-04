@@ -1,6 +1,6 @@
 import "server-only";
 import { defineRelations } from "drizzle-orm";
-import { accounts, sessions, users } from "./schema/auth-schema.ts";
+import { accountsTable as accounts, sessionsTable as sessions, usersTable as users } from "./schema/auth-schema.ts";
 import { collectiveSolutionsTable as collectiveSolutions } from "./schema/collective-solutions.ts";
 import { contestsTable as contests } from "./schema/contests.ts";
 import { eventsTable as events } from "./schema/events.ts";

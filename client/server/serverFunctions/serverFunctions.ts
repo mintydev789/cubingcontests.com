@@ -11,7 +11,7 @@ import { nxnMoves } from "~/helpers/types/NxNMove.ts";
 import { getIsAdmin } from "~/helpers/utilityFunctions.ts";
 import { auth } from "~/server/auth.ts";
 import { db } from "~/server/db/provider.ts";
-import { users as usersTable } from "~/server/db/schema/auth-schema.ts";
+import { usersTable } from "~/server/db/schema/auth-schema.ts";
 import {
   type CollectiveSolutionResponse,
   collectiveSolutionsPublicCols,
@@ -96,8 +96,7 @@ export const updateUserSF = actionClient
 export const startNewCollectiveCubingSolutionSF = actionClient
   .metadata({ permissions: null })
   .action<CollectiveSolutionResponse>(async ({ ctx: { session } }) => {
-    const [ongoingSolution] = await db.select().from(csTable).where(eq(csTable.state, "ongoing")).limit(1);
-
+    const ongoingSolution = await db.query.collectiveSolutions.findFirst({ where: { state: "ongoing" } });
     if (ongoingSolution) throw new CcActionError("The cube has already been scrambled", { data: ongoingSolution });
 
     const eventId = "222";
@@ -138,40 +137,47 @@ export const makeCollectiveCubingMoveSF = actionClient
       lastSeenSolution: z.string(),
     }),
   )
-  .action<CollectiveSolutionResponse>(async ({ parsedInput: { move, lastSeenSolution }, ctx: { session } }) => {
-    const [ongoingSolution] = await db.select().from(csTable).where(eq(csTable.state, "ongoing")).limit(1);
+  .action<CollectiveSolutionResponse>(
+    async ({
+      parsedInput: { move, lastSeenSolution },
+      ctx: {
+        session: { user },
+      },
+    }) => {
+      const [ongoingSolution] = await db.select().from(csTable).where(eq(csTable.state, "ongoing")).limit(1);
 
-    if (!ongoingSolution) {
-      throw new CcActionError("The puzzle is already solved", { data: { isSolved: true } });
-    }
+      if (!ongoingSolution) {
+        throw new CcActionError("The puzzle is already solved", { data: { isSolved: true } });
+      }
 
-    if (session.user.id === ongoingSolution.lastUserWhoInteracted) {
-      throw new CcActionError(
-        ongoingSolution.solution
-          ? "You may not make two moves in a row"
-          : "You scrambled the cube, so you may not make the first move",
-      );
-    }
+      if (user.id === ongoingSolution.lastUserWhoInteracted) {
+        throw new CcActionError(
+          ongoingSolution.solution
+            ? "You may not make two moves in a row"
+            : "You scrambled the cube, so you may not make the first move",
+        );
+      }
 
-    if (ongoingSolution.solution !== lastSeenSolution) {
-      throw new CcActionError("The state of the cube has changed before your move", { data: ongoingSolution });
-    }
+      if (ongoingSolution.solution !== lastSeenSolution) {
+        throw new CcActionError("The state of the cube has changed before your move", { data: ongoingSolution });
+      }
 
-    const solution = new Alg(ongoingSolution.solution).concat(move);
-    const state = (await getIsSolved(new Alg(ongoingSolution.scramble).concat(solution))) ? "solved" : "ongoing";
+      const solution = new Alg(ongoingSolution.solution).concat(move);
+      const state = (await getIsSolved(new Alg(ongoingSolution.scramble).concat(solution))) ? "solved" : "ongoing";
 
-    const [updatedSolution] = await db
-      .update(csTable)
-      .set({
-        state,
-        solution: solution.toString(),
-        lastUserWhoInteracted: session.user.id,
-        usersWhoMadeMoves: !ongoingSolution.usersWhoMadeMoves.includes(session.user.id)
-          ? [...ongoingSolution.usersWhoMadeMoves, session.user.id]
-          : ongoingSolution.usersWhoMadeMoves,
-      })
-      .where(eq(csTable.id, ongoingSolution.id))
-      .returning(collectiveSolutionsPublicCols);
+      const [updatedSolution] = await db
+        .update(csTable)
+        .set({
+          state,
+          solution: solution.toString(),
+          lastUserWhoInteracted: user.id,
+          usersWhoMadeMoves: !ongoingSolution.usersWhoMadeMoves.includes(user.id)
+            ? [...ongoingSolution.usersWhoMadeMoves, user.id]
+            : ongoingSolution.usersWhoMadeMoves,
+        })
+        .where(eq(csTable.id, ongoingSolution.id))
+        .returning(collectiveSolutionsPublicCols);
 
-    return updatedSolution;
-  });
+      return updatedSolution;
+    },
+  );

@@ -1,14 +1,15 @@
 import "server-only";
-import { boolean, integer, pgEnum, pgTable as table, text, uniqueIndex } from "drizzle-orm/pg-core";
+import { boolean, integer, text, uniqueIndex } from "drizzle-orm/pg-core";
 import { getTableColumns } from "drizzle-orm/utils";
 import { EventCategoryValues, EventFormatValues, RoundFormatValues } from "~/helpers/types.ts";
+import { ccSchema } from "~/server/db/schema/schema.ts";
 import { tableTimestamps } from "../dbUtils.ts";
 
-export const eventFormatEnum = pgEnum("event_format", EventFormatValues);
-export const roundFormatEnum = pgEnum("round_format", RoundFormatValues);
-export const eventCategoryEnum = pgEnum("event_category", EventCategoryValues);
+export const eventFormatEnum = ccSchema.enum("event_format", EventFormatValues);
+export const roundFormatEnum = ccSchema.enum("round_format", RoundFormatValues);
+export const eventCategoryEnum = ccSchema.enum("event_category", EventCategoryValues);
 
-export const eventsTable = table(
+export const eventsTable = ccSchema.table(
   "events",
   {
     id: integer().primaryKey().generatedAlwaysAsIdentity(),

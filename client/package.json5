@@ -1,5 +1,5 @@
 {
-  name: 'cubing-contests-client',
+  name: 'cubing-contests',
   type: 'module',
   private: true,
   scripts: {
@@ -9,9 +9,9 @@
     check: '@biomejs/biome lint && @biomejs/biome check',
     test: 'vitest run',
     'test:watch': 'vitest watch',
-    'db:push': 'NODE_OPTIONS="--conditions=react-server" npx drizzle-kit push',
-    'db:migrate': 'NODE_OPTIONS="--conditions=react-server" npx drizzle-kit migrate',
-    'db:generate': 'NODE_OPTIONS="--conditions=react-server" npx drizzle-kit generate',
+    'db:push': 'NODE_OPTIONS="--conditions=react-server" drizzle-kit push',
+    'db:migrate': 'NODE_OPTIONS="--conditions=react-server" drizzle-kit migrate',
+    'db:generate': 'NODE_OPTIONS="--conditions=react-server" drizzle-kit generate',
     'auth:migrate': '@better-auth/cli migrate',
     // BEFORE RUNNING THIS COMMENT OUT THE "relations" PROPERTY IN THE DRIZZLE CONFIG OBJECT IN provider.ts
     'auth:generate': '@better-auth/cli generate --output ./server/db/schema/auth-schema.ts',
@@ -30,10 +30,10 @@
     'better-auth': '1.4.10',
     bootstrap: '5.3.8',
     'country-flag-icons': '1.6.4',
-    cubing: '0.61.1',
+    cubing: '0.61.2',
     'date-fns': '4.1.0',
     'date-fns-tz': '3.2.0',
-    'drizzle-orm': '1.0.0-beta.6-4414a19',
+    'drizzle-orm': '1.0.0-beta.8-734e789',
     'geo-tz': '8.1.4',
     handlebars: '4.7.8',
     lodash: '4.17.21',
@@ -62,7 +62,7 @@
     '@types/pg': '8.16.0',
     '@types/react': '19.2.7',
     '@types/react-dom': '19.2.3',
-    'drizzle-kit': '1.0.0-beta.6-4414a19',
+    'drizzle-kit': '1.0.0-beta.8-734e789',
     vitest: '4.0.16',
   },
 }

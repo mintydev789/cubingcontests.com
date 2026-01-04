@@ -109,16 +109,16 @@ export const createPersonSF = actionClient
     }),
   )
   .action<PersonResponse | SelectPerson>(
-    async ({ parsedInput: { newPersonDto, ignoreDuplicate }, ctx: { session } }) => {
+    async ({ parsedInput: { newPersonDto, ignoreDuplicate }, ctx: { session: {user} } }) => {
       const { name, wcaId } = newPersonDto;
       logMessage("CC0019", `Creating person with name ${name} and ${wcaId ? `WCA ID ${wcaId}` : "no WCA ID"}`);
 
-      const canApprove = await checkUserPermissions(session.user.id, { persons: ["approve"] });
+      const canApprove = await checkUserPermissions(user.id, { persons: ["approve"] });
 
-      await validatePerson(newPersonDto, { ignoreDuplicate, isAdmin: getIsAdmin(session.user.role) });
+      await validatePerson(newPersonDto, { ignoreDuplicate, isAdmin: getIsAdmin(user.role) });
 
       // TO-DO: ADD SUPPORT FOR EXTERNAL DATA ENTRY!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      const query = db.insert(table).values({ ...newPersonDto, createdBy: session.user.id });
+      const query = db.insert(table).values({ ...newPersonDto, createdBy: user.id });
       const [createdPerson] = await (canApprove ? query.returning() : query.returning(personsPublicCols));
       return createdPerson;
     },

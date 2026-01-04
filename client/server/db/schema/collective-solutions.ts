@@ -1,12 +1,13 @@
 import "server-only";
 import { getTableColumns } from "drizzle-orm";
-import { integer, pgEnum, serial, pgTable as table, text, varchar } from "drizzle-orm/pg-core";
-import { users as usersTable } from "~/server/db/schema/auth-schema.ts";
+import { integer, serial, text, varchar } from "drizzle-orm/pg-core";
+import { usersTable } from "~/server/db/schema/auth-schema.ts";
+import { ccSchema } from "~/server/db/schema/schema.ts";
 import { tableTimestamps } from "../dbUtils.ts";
 
-export const collectiveSolutionStateEnum = pgEnum("state", ["ongoing", "solved", "archived"]);
+export const collectiveSolutionStateEnum = ccSchema.enum("state", ["ongoing", "solved", "archived"]);
 
-export const collectiveSolutionsTable = table("collective_solutions", {
+export const collectiveSolutionsTable = ccSchema.table("collective_solutions", {
   id: integer().primaryKey().generatedAlwaysAsIdentity(),
   eventId: varchar({ length: 32 }).notNull(),
   attemptNumber: serial().notNull().unique(),

@@ -1,14 +1,15 @@
 import "server-only";
 import { getTableColumns, sql } from "drizzle-orm";
-import { boolean, check, integer, pgEnum, smallint, pgTable as table, text } from "drizzle-orm/pg-core";
+import { boolean, check, integer, smallint, text } from "drizzle-orm/pg-core";
 import { RoundProceedValues, RoundTypeValues } from "~/helpers/types.ts";
+import { ccSchema } from "~/server/db/schema/schema.ts";
 import { tableTimestamps } from "../dbUtils.ts";
 import { roundFormatEnum } from "./events.ts";
 
-export const roundTypeEnum = pgEnum("round_type", RoundTypeValues);
-export const roundProceedEnum = pgEnum("round_proceed", RoundProceedValues);
+export const roundTypeEnum = ccSchema.enum("round_type", RoundTypeValues);
+export const roundProceedEnum = ccSchema.enum("round_proceed", RoundProceedValues);
 
-export const roundsTable = table(
+export const roundsTable = ccSchema.table(
   "rounds",
   {
     id: integer().primaryKey().generatedAlwaysAsIdentity(),

@@ -9,12 +9,7 @@ import { recordConfigsStub } from "~/__mocks__/stubs/recordConfigsStub.ts";
 import { resultsStub } from "~/__mocks__/stubs/resultsStub.ts";
 import { testUsers } from "~/instrumentation.ts";
 import { auth } from "~/server/auth.ts";
-import {
-  accounts as accountsTable,
-  sessions as sessionsTable,
-  users as usersTable,
-  verifications as verificationsTable,
-} from "~/server/db/schema/auth-schema.ts";
+import { accountsTable, sessionsTable, usersTable, verificationsTable } from "~/server/db/schema/auth-schema.ts";
 import { contestsTable } from "~/server/db/schema/contests.ts";
 import { eventsTable } from "~/server/db/schema/events.ts";
 import { personsTable } from "~/server/db/schema/persons.ts";

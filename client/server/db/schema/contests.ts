@@ -1,26 +1,17 @@
 import "server-only";
 import { getTableColumns, sql } from "drizzle-orm";
-import {
-  check,
-  integer,
-  jsonb,
-  pgEnum,
-  pgTable as table,
-  text,
-  timestamp,
-  uniqueIndex,
-  varchar,
-} from "drizzle-orm/pg-core";
+import { check, integer, jsonb, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/pg-core";
 import type { Schedule } from "~/helpers/types/Schedule.ts";
 import { ContestStateValues, ContestTypeValues } from "~/helpers/types.ts";
+import { ccSchema } from "~/server/db/schema/schema.ts";
 import { tableTimestamps } from "../dbUtils.ts";
-import { users as usersTable } from "./auth-schema.ts";
+import { usersTable } from "./auth-schema.ts";
 import { personsTable } from "./persons.ts";
 
-export const contestStateEnum = pgEnum("contest_state", ContestStateValues);
-export const contestTypeEnum = pgEnum("contest_type", ContestTypeValues);
+export const contestStateEnum = ccSchema.enum("contest_state", ContestStateValues);
+export const contestTypeEnum = ccSchema.enum("contest_type", ContestTypeValues);
 
-export const contestsTable = table(
+export const contestsTable = ccSchema.table(
   "contests",
   {
     id: integer().primaryKey().generatedAlwaysAsIdentity(),

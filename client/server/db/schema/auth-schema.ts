@@ -1,7 +1,8 @@
 import "server-only";
-import { boolean, index, integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, index, integer, text, timestamp } from "drizzle-orm/pg-core";
+import { ccSchema } from "~/server/db/schema/schema.ts";
 
-export const users = pgTable("users", {
+export const usersTable = ccSchema.table("users", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
@@ -21,7 +22,7 @@ export const users = pgTable("users", {
   personId: integer("person_id"),
 });
 
-export const sessions = pgTable(
+export const sessionsTable = ccSchema.table(
   "sessions",
   {
     id: text("id").primaryKey(),
@@ -35,13 +36,13 @@ export const sessions = pgTable(
     userAgent: text("user_agent"),
     userId: text("user_id")
       .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+      .references(() => usersTable.id, { onDelete: "cascade" }),
     impersonatedBy: text("impersonated_by"),
   },
   (table) => [index("sessions_userId_idx").on(table.userId)],
 );
 
-export const accounts = pgTable(
+export const accountsTable = ccSchema.table(
   "accounts",
   {
     id: text("id").primaryKey(),
@@ -49,7 +50,7 @@ export const accounts = pgTable(
     providerId: text("provider_id").notNull(),
     userId: text("user_id")
       .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+      .references(() => usersTable.id, { onDelete: "cascade" }),
     accessToken: text("access_token"),
     refreshToken: text("refresh_token"),
     idToken: text("id_token"),
@@ -65,7 +66,7 @@ export const accounts = pgTable(
   (table) => [index("accounts_userId_idx").on(table.userId)],
 );
 
-export const verifications = pgTable(
+export const verificationsTable = ccSchema.table(
   "verifications",
   {
     id: text("id").primaryKey(),

@@ -3,7 +3,7 @@ import LoadingError from "~/app/components/UI/LoadingError.tsx";
 import ManageCompetitorsScreen from "~/app/mod/competitors/ManageCompetitorsScreen.tsx";
 import type { Creator } from "~/helpers/types.ts";
 import { db } from "~/server/db/provider.ts";
-import { users as usersTable } from "~/server/db/schema/auth-schema.ts";
+import { usersTable } from "~/server/db/schema/auth-schema.ts";
 import {
   type PersonResponse,
   personsPublicCols,

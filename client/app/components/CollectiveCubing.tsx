@@ -48,7 +48,8 @@ function CollectiveCubing({ initCollectiveSolution }: Props) {
   const updatePuzzleState = (newSolution: CollectiveSolutionResponse | null, reset = false) => {
     setCollectiveSolution(newSolution);
 
-    const alg = newSolution ? new Alg(newSolution.scramble).concat(newSolution.solution) : new Alg();
+    const alg =
+      newSolution?.state === "ongoing" ? new Alg(newSolution.scramble).concat(newSolution.solution) : new Alg();
 
     if (reset) {
       twistyPlayerContainerRef.current!.removeChild(twistyPlayerRef.current!);
@@ -142,7 +143,7 @@ function CollectiveCubing({ initCollectiveSolution }: Props) {
                   id="scramble_button"
                   onClick={scramblePuzzle}
                   isLoading={isScrambling}
-                  className="btn-success w-100 mt-2 mb-4"
+                  className="btn-success mt-2 mb-4 w-100"
                 >
                   Scramble
                 </Button>
@@ -152,11 +153,11 @@ function CollectiveCubing({ initCollectiveSolution }: Props) {
               </p>
             </div>
           </div>
-          <div className="col-md-8 " style={{ maxWidth: "500px" }}>
+          <div className="col-md-8" style={{ maxWidth: "500px" }}>
             {!isSolved && (
               <>
                 <div
-                  className="gap-1 gap-md-3 mt-1 mt-md-4"
+                  className="mt-1 mt-md-4 gap-1 gap-md-3"
                   style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)" }}
                 >
                   {nxnMoves.map((move) => (
@@ -173,7 +174,7 @@ function CollectiveCubing({ initCollectiveSolution }: Props) {
                     </div>
                   ))}
                 </div>
-                <div className="my-3 my--md-4">
+                <div className="my-3 my-md-4">
                   <Button
                     id="confirm_button"
                     onClick={submitMove}
@@ -184,7 +185,7 @@ function CollectiveCubing({ initCollectiveSolution }: Props) {
                     Confirm
                   </Button>
                 </div>
-                <div className="d-flex justify-content-between align-items-center gap-3 my-3">
+                <div className="d-flex justify-content-between my-3 gap-3 align-items-center">
                   <p className="m-0">
                     Moves used:{" "}
                     <b>
