@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.3.7/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.3.11/schema.json",
   "files": {
     "includes": ["**", "!**/node_modules", "!**/.next", "!**/dist"],
     "ignoreUnknown": true
@@ -22,7 +22,7 @@
         "noNonNullAssertion": "off"
       },
       "correctness": {
-        "useImportExtensions": "on",
+        "useImportExtensions": "warn",
         "useExhaustiveDependencies": "warn"
       },
       "nursery": {

@@ -6,13 +6,13 @@ import type { EventWrPair } from "~/helpers/types.ts";
 import type { EventResponse } from "~/server/db/schema/events.ts";
 import type { Attempt, ResultResponse } from "~/server/db/schema/results.ts";
 
-const mockTimeEvent = eventsStub.find((e) => e.eventId === "333") as any;
+const mockTimeEvent = eventsStub.find((e) => e.eventId === "333")!;
 
 describe(getBestAndAverage.name, () => {
   it("sets average to 0 when there is only one attempt", () => {
     const attempts: Attempt[] = [{ result: 1234 }];
 
-    const { best, average } = getBestAndAverage(attempts, mockTimeEvent, "1");
+    const { best, average } = getBestAndAverage(attempts, mockTimeEvent.format, "1");
 
     expect(best).toBe(1234);
     expect(average).toBe(0);
@@ -21,7 +21,7 @@ describe(getBestAndAverage.name, () => {
   it("sets average to 0 when there are only 2 attempts", () => {
     const attempts: Attempt[] = [{ result: 1234 }, { result: 2345 }];
 
-    const { best, average } = getBestAndAverage(attempts, mockTimeEvent, "2");
+    const { best, average } = getBestAndAverage(attempts, mockTimeEvent.format, "2");
 
     expect(best).toBe(1234);
     expect(average).toBe(0);

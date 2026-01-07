@@ -23,7 +23,7 @@ import { contestsTable, type SelectContest } from "~/server/db/schema/contests.t
 import type { RoundResponse } from "~/server/db/schema/rounds.ts";
 import { type DbTransactionType, db } from "../db/provider.ts";
 import type { EventResponse } from "../db/schema/events.ts";
-import { personsTable, type SelectPerson } from "../db/schema/persons.ts";
+import type { SelectPerson } from "../db/schema/persons.ts";
 import type { RecordConfigResponse } from "../db/schema/record-configs.ts";
 import {
   type InsertResult,
@@ -107,6 +107,9 @@ export const createContestResultSF = actionClient
       if (!round) throw new CcActionError(`Round with ID ${newResultDto.roundId} not found`);
       if (!round.open) throw new CcActionError("The round is not open");
       // Same check as in createVideoBasedResultSF
+      const notFoundPersonId = personIds.find((pid) => !participants.some((p) => p.id === pid));
+      if (notFoundPersonId) throw new CcActionError(`Person with ID ${notFoundPersonId} not found`);
+      // Same check as in createVideoBasedResultSF
       if (newResultDto.personIds.length !== event.participants)
         throw new CcActionError(
           `This event must have ${event.participants} participant${event.participants > 1 ? "s" : ""}`,
@@ -129,6 +132,7 @@ export const createContestResultSF = actionClient
       }
 
       const roundFormat = roundFormats.find((rf) => rf.value === round.format)!;
+      let expectedNumberOfAttempts = roundFormat.attempts;
 
       // Time limit validation
       if (round.timeLimitCentiseconds) {
@@ -152,7 +156,7 @@ export const createContestResultSF = actionClient
             throw new CcActionError(
               `This round has a cumulative time limit of ${getFormattedTime(round.timeLimitCentiseconds)}${
                 round.timeLimitCumulativeRoundIds.length > 0
-                  ? ` for these rounds: ${round.timeLimitCumulativeRoundIds.join(", ")}`
+                  ? ` for these rounds: ${round.id}, ${round.timeLimitCumulativeRoundIds.join(", ")}`
                   : ""
               }`,
             );
@@ -160,28 +164,30 @@ export const createContestResultSF = actionClient
         }
 
         // Cutoff validation
-        if (round.cutoffAttemptResult && round.cutoffNumberOfAttempts) {
-          if (getMakesCutoff(newResultDto.attempts, round.cutoffAttemptResult, round.cutoffNumberOfAttempts)) {
-            if (newResultDto.attempts.length !== roundFormat.attempts) {
-              throw new CcActionError(
-                `The number of attempts should be ${roundFormat.attempts}; received: ${newResultDto.attempts.length}`,
-              );
-            }
-          } else if (newResultDto.attempts.length > round.cutoffNumberOfAttempts!) {
+        if (
+          round.cutoffAttemptResult &&
+          round.cutoffNumberOfAttempts &&
+          !getMakesCutoff(newResultDto.attempts, round.cutoffAttemptResult, round.cutoffNumberOfAttempts)
+        ) {
+          if (newResultDto.attempts.length > round.cutoffNumberOfAttempts!) {
             const attemptsPastCutoffNumberOfAttempts = newResultDto.attempts.slice(round.cutoffNumberOfAttempts);
             if (attemptsPastCutoffNumberOfAttempts.some((a) => a.result !== 0))
               throw new CcActionError(`This round has a cutoff of ${getFormattedTime(round.cutoffAttemptResult)}`);
             else newResultDto.attempts = newResultDto.attempts.slice(0, round.cutoffNumberOfAttempts);
-          } else if (newResultDto.attempts.length < round.cutoffNumberOfAttempts) {
-            throw new CcActionError(
-              `The number of attempts should be ${round.cutoffNumberOfAttempts}; received: ${newResultDto.attempts.length}`,
-            );
           }
+
+          expectedNumberOfAttempts = round.cutoffNumberOfAttempts;
         }
       }
 
+      if (newResultDto.attempts.length !== expectedNumberOfAttempts) {
+        throw new CcActionError(
+          `The number of attempts should be ${expectedNumberOfAttempts}; received: ${newResultDto.attempts.length}`,
+        );
+      }
+
       const recordConfigs = await getRecordConfigs(contest.type === "meetup" ? "meetups" : "competitions");
-      const { best, average } = getBestAndAverage(newResultDto.attempts, event, roundFormat.value);
+      const { best, average } = getBestAndAverage(newResultDto.attempts, event.format, roundFormat.value);
       const newResult: InsertResult = {
         eventId,
         date: getRoundDate(round, contest),
@@ -317,19 +323,28 @@ export const createVideoBasedResultSF = actionClient
           throw new CcActionError("You are not authorized to set unknown time");
       }
 
-      const event = await db.query.events.findFirst({ where: { eventId: newResultDto.eventId } });
-      if (!event) throw new CcActionError(`Event with ID ${newResultDto.eventId} not found`);
+      const eventPromise = db.query.events.findFirst({ where: { eventId: newResultDto.eventId } });
+      const personsPromise = db.query.persons.findMany({ where: { id: { in: newResultDto.personIds } } });
+      const recordConfigsPromise = getRecordConfigs("video-based-results");
 
+      const [event, participants, recordConfigs] = await Promise.all([
+        eventPromise,
+        personsPromise,
+        recordConfigsPromise,
+      ]);
+
+      if (!event) throw new CcActionError(`Event with ID ${newResultDto.eventId} not found`);
+      // Same check as in createContestResultSF
+      const notFoundPersonId = newResultDto.personIds.find((pid) => !participants.some((p) => p.id === pid));
+      if (notFoundPersonId) throw new CcActionError(`Person with ID ${notFoundPersonId} not found`);
       // Same check as in createContestResultSF
       if (newResultDto.personIds.length !== event.participants)
         throw new CcActionError(
           `This event must have ${event.participants} participant${event.participants > 1 ? "s" : ""}`,
         );
 
-      const recordConfigs = await getRecordConfigs("video-based-results");
-      const participants = await db.select().from(personsTable).where(inArray(personsTable.id, newResultDto.personIds));
       const roundFormat = roundFormats.find((rf) => rf.attempts === newResultDto.attempts.length && rf.value !== "3")!;
-      const { best, average } = getBestAndAverage(newResultDto.attempts, event, roundFormat.value);
+      const { best, average } = getBestAndAverage(newResultDto.attempts, event.format, roundFormat.value);
       const newResult: InsertResult = {
         ...newResultDto,
         best,
@@ -448,124 +463,141 @@ async function setFutureRecords(
   recordConfigs: RecordConfigResponse[],
 ) {
   const recordField = bestOrAverage === "best" ? "regionalSingleRecord" : "regionalAverageRecord";
-  const snakeRecordField = bestOrAverage === "best" ? "regional_single_record" : "regional_average_record";
   const type = bestOrAverage === "best" ? "single" : "average";
   const { category } = recordConfigs[0];
   const recordsUpTo = addDays(deletedResult.date, -1);
 
   // Set WRs
   if (deletedResult[recordField] === "WR") {
-    const prevWrResult = await getRecordResult(deletedResult.eventId, bestOrAverage, "WR", category, { recordsUpTo });
-    const newWrs = await tx.execute(sql`
-      WITH day_min_times AS (
-        SELECT ${table.id}, ${table.date}, ${table[bestOrAverage]},
-          MIN(${table[bestOrAverage]}) OVER(PARTITION BY ${table.date} ORDER BY ${table.date}
-            ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS day_min_time
-        FROM ${table}
-        WHERE ${table[bestOrAverage]} > ${deletedResult[bestOrAverage]}
-          AND ${table[bestOrAverage]} <= ${prevWrResult ? prevWrResult[bestOrAverage] : C.maxResult}
-          AND ${table.eventId} = ${deletedResult.eventId}
-          AND ${table.date} >= ${deletedResult.date.toISOString()}
-          AND ${table[recordField]} <> 'WR'
-          AND ${table.recordCategory} = ${category}
-        ORDER BY ${table.date}
-      ), results_with_record_times AS (
-        SELECT id, MIN(day_min_time) OVER(ORDER BY date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS curr_record
-        FROM day_min_times
-        ORDER BY date
-      )
-      UPDATE ${table} SET ${sql.raw(snakeRecordField)} = 'WR'
-      FROM results_with_record_times
-      WHERE ${table.id} = results_with_record_times.id
-        AND ${table[bestOrAverage]} = results_with_record_times.curr_record
-      RETURNING *`);
+    const prevWrResult = await getRecordResult(deletedResult.eventId, bestOrAverage, "WR", category, {
+      tx,
+      recordsUpTo,
+    });
+    const newWrIds = await tx
+      .execute(sql`
+        WITH day_min_times AS (
+          SELECT ${table.id}, ${table.date}, ${table[bestOrAverage]},
+            MIN(${table[bestOrAverage]}) OVER(PARTITION BY ${table.date}
+              ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS day_min_time
+          FROM ${table}
+          WHERE ${table[bestOrAverage]} > 0
+            AND ${table[bestOrAverage]} <= ${prevWrResult ? prevWrResult[bestOrAverage] : C.maxResult}
+            AND ${table.eventId} = ${deletedResult.eventId}
+            AND ${table.date} >= ${deletedResult.date.toISOString()}
+            AND ${table.recordCategory} = ${category}
+          ORDER BY ${table.date}
+        ), results_with_record_times AS (
+          SELECT id, MIN(day_min_time) OVER(ORDER BY date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS curr_record
+          FROM day_min_times
+          ORDER BY date
+        )
+        SELECT ${table.id}
+        FROM ${table} RIGHT JOIN results_with_record_times
+        ON ${table.id} = results_with_record_times.id
+        WHERE (${table[recordField]} IS NULL OR ${table[recordField]} <> 'WR')
+          AND ${table[bestOrAverage]} = results_with_record_times.curr_record`)
+      .then((val: any) => val.rows.map(({ id }: any) => id));
 
-    for (const wr of newWrs) {
-      const date = format(wr.date as Date, "d MMM yyyy");
+    const newWrResults = await tx
+      .update(table)
+      .set({ [recordField]: "WR" })
+      .where(inArray(table.id, newWrIds))
+      .returning({ date: table.date, [bestOrAverage]: table[bestOrAverage] });
+
+    for (const wr of newWrResults) {
+      const date = format(wr.date, "d MMM yyyy");
       logMessage("CC0025", `New ${type} WR for event ${deletedResult.eventId}: ${wr[bestOrAverage]} (${date})`);
     }
   }
 
   // Set CRs
-  if (
-    deletedResult.superRegionCode &&
-    ["ER", "NAR", "SAR", "AsR", "AfR", "OcR"].includes(deletedResult[recordField]!)
-  ) {
-    const prevCrResult = await getRecordResult(
-      deletedResult.eventId,
-      bestOrAverage,
-      deletedResult[recordField]!,
-      category,
-      { recordsUpTo },
-    );
-    const newCrs = await tx.execute(sql`
-      WITH day_min_times AS (
-        SELECT ${table.id}, ${table.date}, ${table[bestOrAverage]},
-          MIN(${table[bestOrAverage]}) OVER(PARTITION BY ${table.date} ORDER BY ${table.date}
-            ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS day_min_time
-        FROM ${table}
-        WHERE ${table[bestOrAverage]} > ${deletedResult[bestOrAverage]}
-          AND ${table[bestOrAverage]} <= ${prevCrResult ? prevCrResult[bestOrAverage] : C.maxResult}
-          AND ${table.eventId} = ${deletedResult.eventId}
-          AND ${table.date} >= ${deletedResult.date.toISOString()}
-          AND ${table.superRegionCode} = ${deletedResult.superRegionCode}
-          AND (${table[recordField]} IS NULL OR ${table[recordField]} = 'NR')
-          AND ${table.recordCategory} = ${category}
-        ORDER BY ${table.date}
-      ), results_with_record_times AS (
-        SELECT id, MIN(day_min_time) OVER(ORDER BY date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS curr_record
-        FROM day_min_times
-        ORDER BY date
-      )
-      UPDATE ${table} SET ${sql.raw(snakeRecordField)} = ${deletedResult[recordField]}
-      FROM results_with_record_times
-      WHERE ${table.id} = results_with_record_times.id
-        AND ${table[bestOrAverage]} = results_with_record_times.curr_record
-      RETURNING *`);
+  if (deletedResult.superRegionCode && deletedResult[recordField] !== "NR") {
+    const crType = ContinentRecordType[deletedResult.superRegionCode as ContinentCode];
+    const prevCrResult = await getRecordResult(deletedResult.eventId, bestOrAverage, crType, category, {
+      tx,
+      recordsUpTo,
+    });
+    const newCrIds = await tx
+      .execute(sql`
+        WITH day_min_times AS (
+          SELECT ${table.id}, ${table.date}, ${table[bestOrAverage]},
+            MIN(${table[bestOrAverage]}) OVER(PARTITION BY ${table.date}
+              ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS day_min_time
+          FROM ${table}
+          WHERE ${table[bestOrAverage]} > 0
+            AND ${table[bestOrAverage]} <= ${prevCrResult ? prevCrResult[bestOrAverage] : C.maxResult}
+            AND ${table.eventId} = ${deletedResult.eventId}
+            AND ${table.date} >= ${deletedResult.date.toISOString()}
+            AND ${table.superRegionCode} = ${deletedResult.superRegionCode}
+            AND ${table.recordCategory} = ${category}
+          ORDER BY ${table.date}
+        ), results_with_record_times AS (
+          SELECT id, MIN(day_min_time) OVER(ORDER BY date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS curr_record
+          FROM day_min_times
+          ORDER BY date
+        )
+        SELECT ${table.id}
+        FROM ${table} RIGHT JOIN results_with_record_times
+        ON ${table.id} = results_with_record_times.id
+        WHERE (${table[recordField]} IS NULL OR ${table[recordField]} = 'NR')
+          AND ${table[bestOrAverage]} = results_with_record_times.curr_record`)
+      .then((val: any) => val.rows.map(({ id }: any) => id));
 
-    for (const cr of newCrs) {
-      const date = format(cr.date as Date, "d MMM yyyy");
-      logMessage(
-        "CC0025",
-        `New ${type} ${deletedResult[recordField]} for event ${deletedResult.eventId}: ${cr[bestOrAverage]} (${date})`,
-      );
+    const newCrResults = await tx
+      .update(table)
+      .set({ [recordField]: crType })
+      .where(inArray(table.id, newCrIds))
+      .returning({ date: table.date, [bestOrAverage]: table[bestOrAverage] });
+
+    for (const cr of newCrResults) {
+      const date = format(cr.date, "d MMM yyyy");
+      logMessage("CC0025", `New ${type} ${crType} for event ${deletedResult.eventId}: ${cr[bestOrAverage]} (${date})`);
     }
   }
 
   // Set NRs
   if (deletedResult.regionCode) {
     const prevNrResult = await getRecordResult(deletedResult.eventId, bestOrAverage, "NR", category, {
+      tx,
       recordsUpTo,
       regionCode: deletedResult.regionCode,
     });
-    const newNrs = await tx.execute(sql`
-      WITH day_min_times AS (
-        SELECT ${table.id}, ${table.date}, ${table[bestOrAverage]},
-          MIN(${table[bestOrAverage]}) OVER(PARTITION BY ${table.date} ORDER BY ${table.date}
-            ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS day_min_time
-        FROM ${table}
-        WHERE ${table[bestOrAverage]} > ${deletedResult[bestOrAverage]}
-          AND ${table[bestOrAverage]} <= ${prevNrResult ? prevNrResult[bestOrAverage] : C.maxResult}
-          AND ${table.eventId} = ${deletedResult.eventId}
-          AND ${table.date} >= ${deletedResult.date.toISOString()}
-          AND ${table.regionCode} = ${deletedResult.regionCode}
-          AND ${table[recordField]} IS NULL
-          AND ${table.recordCategory} = ${category}
-        ORDER BY ${table.date}
-      ), results_with_record_times AS (
-        SELECT id, MIN(day_min_time) OVER(ORDER BY date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS curr_record
-        FROM day_min_times
-        ORDER BY date
-      )
-      UPDATE ${table} SET ${sql.raw(snakeRecordField)} = 'NR'
-      FROM results_with_record_times
-      WHERE ${table.id} = results_with_record_times.id
-        AND ${table[bestOrAverage]} = results_with_record_times.curr_record
-      RETURNING *`);
 
-    for (const nr of newNrs) {
-      const date = format(nr.date as Date, "d MMM yyyy");
-      const country = Countries.find((c) => c.code === nr.region_code)!.name;
+    const newNrIds = await tx
+      .execute(sql`
+        WITH day_min_times AS (
+          SELECT ${table.id}, ${table.date}, ${table[bestOrAverage]},
+            MIN(${table[bestOrAverage]}) OVER(PARTITION BY ${table.date}
+              ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS day_min_time
+          FROM ${table}
+          WHERE ${table[bestOrAverage]} > 0
+            AND ${table[bestOrAverage]} <= ${prevNrResult ? prevNrResult[bestOrAverage] : C.maxResult}
+            AND ${table.eventId} = ${deletedResult.eventId}
+            AND ${table.date} >= ${deletedResult.date.toISOString()}
+            AND ${table.regionCode} = ${deletedResult.regionCode}
+            AND ${table.recordCategory} = ${category}
+          ORDER BY ${table.date}
+        ), results_with_record_times AS (
+          SELECT id, MIN(day_min_time) OVER(ORDER BY date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS curr_record
+          FROM day_min_times
+          ORDER BY date
+        )
+        SELECT ${table.id}
+        FROM ${table} RIGHT JOIN results_with_record_times
+        ON ${table.id} = results_with_record_times.id
+        WHERE ${table[recordField]} IS NULL
+          AND ${table[bestOrAverage]} = results_with_record_times.curr_record`)
+      .then((val: any) => val.rows.map(({ id }: any) => id));
+
+    const newNrResults = await tx
+      .update(table)
+      .set({ [recordField]: "NR" })
+      .where(inArray(table.id, newNrIds))
+      .returning({ date: table.date, regionCode: table.regionCode, [bestOrAverage]: table[bestOrAverage] });
+
+    for (const nr of newNrResults) {
+      const date = format(nr.date, "d MMM yyyy");
+      const country = Countries.find((c) => c.code === nr.regionCode)!.name;
       logMessage(
         "CC0025",
         `New ${type} NR (${country}) for event ${deletedResult.eventId}: ${nr[bestOrAverage]} (${date})`,

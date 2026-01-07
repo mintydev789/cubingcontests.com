@@ -2,6 +2,7 @@ import "server-only";
 import { createSafeActionClient, DEFAULT_SERVER_ERROR_MESSAGE } from "next-safe-action";
 import z from "zod";
 import type { authClient } from "~/helpers/authClient.ts";
+// import { testUsers } from "~/instrumentation.ts";
 import type { CcServerErrorObject } from "../helpers/types.ts";
 import { authorizeUser } from "./serverUtilityFunctions.ts";
 
@@ -25,8 +26,13 @@ export const actionClient = createSafeActionClient({
   // We still want to check authentication when permissions = null
   if (metadata.permissions !== undefined) {
     if (process.env.VITEST) {
-      const mockUser = { personId: 1, email: "email@example.com", role: "admin" };
-      return next({ ctx: { session: { user: mockUser } } });
+      // testUsers ???
+      const adminTestUser = { personId: 1, email: "admin@example.com", role: "admin" };
+      const moderator1TestUser = { personId: 2, email: "mod1@example.com", role: "mod" };
+
+      const user = process.env.TEST_USER === "moderator1" ? moderator1TestUser : adminTestUser;
+
+      return next({ ctx: { session: { user } } });
     } else {
       const session = await authorizeUser({ permissions: metadata.permissions });
       return next({ ctx: { session } });

@@ -1,11 +1,11 @@
+import { roundsStub } from "~/__mocks__/stubs/roundsStub";
 import type { Schedule } from "~/helpers/types/Schedule.ts";
 import type { ContestType } from "~/helpers/types.ts";
 import type { InsertContest } from "~/server/db/schema/contests.ts";
 
-function getSchedule(
-  contest: Pick<InsertContest, "competitionId" | "startDate" | "endDate">,
-  eventIds: string[],
-): Schedule {
+function getSchedule(contest: Pick<InsertContest, "competitionId" | "startDate" | "endDate">): Schedule {
+  const rounds = roundsStub.filter((r) => r.competitionId === contest.competitionId);
+
   return {
     venues: [
       {
@@ -20,9 +20,9 @@ function getSchedule(
             id: 1,
             name: "Roomhall",
             color: "#000000",
-            activities: eventIds.map((eventId) => ({
-              id: 1,
-              activityCode: `${eventId}-r1`,
+            activities: rounds.map((r, index) => ({
+              id: index + 1,
+              activityCode: `${r.eventId}-r${r.roundNumber}`,
               startTime: contest.startDate,
               endTime: contest.startDate,
               childActivities: [],
@@ -38,12 +38,11 @@ function getSchedule(
 export const contestsStub: InsertContest[] = [
   // 2020
   {
-    competitionId: "TestMeetup2020",
-    name: "Test Meetup 2020",
+    competitionId: "TestMeetupJan2020",
+    name: "Test Meetup January 2020",
     type: "meetup" as ContestType,
     startDate: new Date(2020, 0, 1),
     endDate: new Date(2020, 0, 1),
-    eventIds: ["555bf"],
   },
   {
     competitionId: "TestCompJan2020",
@@ -51,7 +50,13 @@ export const contestsStub: InsertContest[] = [
     type: "comp" as ContestType,
     startDate: new Date(2020, 0, 1),
     endDate: new Date(2020, 0, 1),
-    eventIds: ["333_oh_bld_team_relay"],
+  },
+  {
+    competitionId: "TestMeetupFeb2020",
+    name: "Test Meetup February 2020",
+    type: "meetup" as ContestType,
+    startDate: new Date(2020, 1, 1),
+    endDate: new Date(2020, 1, 1),
   },
   {
     competitionId: "TestCompFeb2020",
@@ -59,7 +64,13 @@ export const contestsStub: InsertContest[] = [
     type: "comp" as ContestType,
     startDate: new Date(2020, 1, 1),
     endDate: new Date(2020, 1, 1),
-    eventIds: ["333_oh_bld_team_relay"],
+  },
+  {
+    competitionId: "TestMeetupMar2020",
+    name: "Test Meetup March 2020",
+    type: "meetup" as ContestType,
+    startDate: new Date(2020, 2, 1),
+    endDate: new Date(2020, 2, 1),
   },
   {
     competitionId: "TestCompMar2020",
@@ -67,7 +78,6 @@ export const contestsStub: InsertContest[] = [
     type: "comp" as ContestType,
     startDate: new Date(2020, 2, 1),
     endDate: new Date(2020, 2, 1),
-    eventIds: ["333_oh_bld_team_relay"],
   },
   // 2023
   {
@@ -76,16 +86,49 @@ export const contestsStub: InsertContest[] = [
     type: "comp" as ContestType,
     startDate: new Date(2023, 0, 1),
     endDate: new Date(2023, 0, 1),
-    eventIds: ["333", "222", "333bf", "444bf", "333_oh_bld_team_relay"],
+  },
+  {
+    competitionId: "TestMeetupJan2023",
+    name: "Test Meetup January 2023",
+    type: "meetup" as ContestType,
+    startDate: new Date(2023, 0, 1),
+    endDate: new Date(2023, 0, 1),
+  },
+  {
+    competitionId: "TestMeetupFeb2023",
+    name: "Test Meetup February 2023",
+    type: "meetup" as ContestType,
+    startDate: new Date(2023, 1, 1),
+    endDate: new Date(2023, 1, 1),
+  },
+  {
+    competitionId: "TestMeetupMar2023",
+    name: "Test Meetup March 2023",
+    type: "meetup" as ContestType,
+    startDate: new Date(2023, 2, 1),
+    endDate: new Date(2023, 2, 1),
   },
   // 2025
+  {
+    competitionId: "TestMeetupJan2025",
+    name: "Test Meetup January 2025",
+    type: "meetup" as ContestType,
+    startDate: new Date(2025, 0, 1),
+    endDate: new Date(2025, 0, 1),
+  },
   {
     competitionId: "TestCompJan2025",
     name: "Test Competition January 2025",
     type: "comp" as ContestType,
     startDate: new Date(2025, 0, 1),
     endDate: new Date(2025, 0, 1),
-    eventIds: ["333_oh_bld_team_relay"],
+  },
+  {
+    competitionId: "TestMeetupFeb2025",
+    name: "Test Meetup February 2025",
+    type: "meetup" as ContestType,
+    startDate: new Date(2025, 1, 1),
+    endDate: new Date(2025, 1, 1),
   },
   {
     competitionId: "TestCompFeb2025",
@@ -93,7 +136,13 @@ export const contestsStub: InsertContest[] = [
     type: "comp" as ContestType,
     startDate: new Date(2025, 1, 1),
     endDate: new Date(2025, 1, 1),
-    eventIds: ["333_oh_bld_team_relay"],
+  },
+  {
+    competitionId: "TestMeetupMar2025",
+    name: "Test Meetup March 2025",
+    type: "meetup" as ContestType,
+    startDate: new Date(2025, 2, 1),
+    endDate: new Date(2025, 2, 1),
   },
   {
     competitionId: "TestCompMar2025",
@@ -101,7 +150,6 @@ export const contestsStub: InsertContest[] = [
     type: "comp" as ContestType,
     startDate: new Date(2025, 2, 1),
     endDate: new Date(2025, 2, 1),
-    eventIds: ["333_oh_bld_team_relay"],
   },
   {
     competitionId: "TestCompApr2025",
@@ -109,9 +157,8 @@ export const contestsStub: InsertContest[] = [
     type: "comp" as ContestType,
     startDate: new Date(2025, 3, 1),
     endDate: new Date(2025, 3, 1),
-    eventIds: ["333_oh_bld_team_relay"],
   },
-].map(({ eventIds, ...c }) => ({
+].map((c) => ({
   ...c,
   state: "approved",
   shortName: c.name,
@@ -127,5 +174,5 @@ export const contestsStub: InsertContest[] = [
   contact: "email@example.com",
   description: "Description",
   competitorLimit: 100,
-  schedule: c.type === "meetup" ? undefined : getSchedule(c, eventIds),
+  schedule: c.type === "meetup" ? undefined : getSchedule(c),
 }));

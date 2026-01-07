@@ -3,6 +3,7 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import { admin as adminPlugin, username } from "better-auth/plugins";
+import { db } from "~/server/db/provider.ts";
 import {
   accountsTable as accounts,
   sessionsTable as sessions,
@@ -11,7 +12,6 @@ import {
 } from "~/server/db/schema/auth-schema.ts";
 import { sendResetPasswordEmail, sendVerificationEmail } from "~/server/email/mailer.ts";
 import { ac, admin, mod, user } from "~/server/permissions.ts";
-import { db } from "./db/provider.ts";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {

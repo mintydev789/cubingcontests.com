@@ -1,15 +1,14 @@
+import { loadEnvConfig } from "@next/env";
 import { defineConfig } from "vitest/config";
+
+loadEnvConfig(process.cwd());
 
 export default defineConfig({
   test: {
     exclude: [".next/**", "node_modules/**"],
     setupFiles: ["./vitest-setup.ts"],
-    env: {
-      TZ: "UTC",
-      PROD_BASE_URL: "test",
-    },
   },
   resolve: {
-    alias: { "~": Deno.cwd() },
+    alias: { "~": import.meta.dirname },
   },
 });

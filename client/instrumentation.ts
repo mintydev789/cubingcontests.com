@@ -5,6 +5,7 @@ import type { auth as authType } from "~/server/auth.ts";
 import type { db as dbType } from "~/server/db/provider.ts";
 import { accountsTable, usersTable } from "~/server/db/schema/auth-schema.ts";
 import { collectiveSolutionsTable } from "~/server/db/schema/collective-solutions.ts";
+import { ccSchema } from "~/server/db/schema/schema.ts";
 import { getSuperRegion } from "./helpers/Countries.ts";
 import { C } from "./helpers/constants.ts";
 import type { Schedule, Venue } from "./helpers/types/Schedule.ts";
@@ -166,7 +167,7 @@ export async function register() {
             if (tempPersons.length === 100) {
               await tx.execute(
                 sql.raw(
-                  `INSERT INTO ${process.env.CC_DB_SCHEMA}.persons (id, name, localized_name, region_code, wca_id, approved, created_by, created_externally, created_at, updated_at) 
+                  `INSERT INTO ${ccSchema.schemaName}.persons (id, name, localized_name, region_code, wca_id, approved, created_by, created_externally, created_at, updated_at) 
                  OVERRIDING SYSTEM VALUE VALUES ${tempPersons.join(", ")}`,
                 ),
               );
@@ -176,14 +177,14 @@ export async function register() {
 
           await tx.execute(
             sql.raw(
-              `INSERT INTO ${process.env.CC_DB_SCHEMA}.persons (id, name, localized_name, region_code, wca_id, approved, created_by, created_externally, created_at, updated_at) 
+              `INSERT INTO ${ccSchema.schemaName}.persons (id, name, localized_name, region_code, wca_id, approved, created_by, created_externally, created_at, updated_at) 
              OVERRIDING SYSTEM VALUE VALUES ${tempPersons.join(", ")}`,
             ),
           );
 
           await tx.execute(
             sql.raw(
-              `ALTER SEQUENCE ${process.env.CC_DB_SCHEMA}.persons_id_seq RESTART WITH ${personsDump.at(-1)!.personId + 1};`,
+              `ALTER SEQUENCE ${ccSchema.schemaName}.persons_id_seq RESTART WITH ${personsDump.at(-1)!.personId + 1};`,
             ),
           );
         });

@@ -30,7 +30,7 @@ function BestAndAverage({
   const pseudoResult = useMemo<ResultResponse>(() => {
     const { best, average } = getBestAndAverage(
       attempts,
-      event,
+      event.format,
       roundFormat,
       cutoffAttemptResult,
       cutoffNumberOfAttempts,

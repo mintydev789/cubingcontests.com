@@ -7,7 +7,7 @@ import type { Attempt, ResultResponse } from "~/server/db/schema/results.ts";
 import type { RoundResponse } from "~/server/db/schema/rounds.ts";
 import { C } from "./constants.ts";
 import { type RoundFormatObject, roundFormats } from "./roundFormats.ts";
-import type { ContestType, EventWrPair, RoundFormat } from "./types.ts";
+import type { ContestType, EventFormat, EventWrPair, RoundFormat } from "./types.ts";
 import type { PersonDto } from "./validators/Person.ts";
 
 // Returns >0 if a is worse than b, <0 if a is better than b, and 0 if it's a tie.
@@ -182,7 +182,7 @@ export const getMakesCutoff = (
 // Returns the best and average times
 export function getBestAndAverage(
   attempts: Attempt[],
-  event: EventResponse,
+  eventFormat: EventFormat,
   roundFormat: RoundFormat,
   cutoffAttemptResult?: number | null,
   cutoffNumberOfAttempts?: number | null,
@@ -220,7 +220,7 @@ export function getBestAndAverage(
       if (dnfDnsCount === 0) sum -= Math.max(...convertedAttempts);
     }
 
-    average = Math.round((sum / 3) * (event.format === "number" ? 100 : 1));
+    average = Math.round((sum / 3) * (eventFormat === "number" ? 100 : 1));
   }
 
   return { best, average };

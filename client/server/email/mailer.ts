@@ -14,7 +14,7 @@ import type { SelectEvent } from "../db/schema/events.ts";
 import type { ResultResponse } from "../db/schema/results.ts";
 
 // This is needed when running Better Auth DB migrations
-if (process.env.NODE_ENV !== "production") loadEnvConfig(".", true);
+if (process.env.NODE_ENV !== "production") loadEnvConfig(process.cwd(), true);
 
 // Mailtrap documentation: https://github.com/mailtrap/mailtrap-nodejs
 const client = new MailtrapClient({

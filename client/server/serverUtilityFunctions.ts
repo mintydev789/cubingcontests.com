@@ -6,16 +6,16 @@ import { Continents, Countries } from "~/helpers/Countries.ts";
 import { C } from "~/helpers/constants.ts";
 import { type RecordCategory, type RecordType, RecordTypeValues } from "~/helpers/types.ts";
 import { getIsAdmin } from "~/helpers/utilityFunctions.ts";
+import { type DbTransactionType, db } from "~/server/db/provider.ts";
 import type { ContestResponse } from "~/server/db/schema/contests.ts";
+import { eventsPublicCols, eventsTable } from "~/server/db/schema/events.ts";
 import type { SelectPerson } from "~/server/db/schema/persons.ts";
+import { recordConfigsPublicCols, recordConfigsTable } from "~/server/db/schema/record-configs.ts";
+import { resultsTable, type SelectResult } from "~/server/db/schema/results.ts";
 import { type LogCode, logger } from "~/server/logger.ts";
 import { CcActionError } from "~/server/safeAction.ts";
 import { getDateOnly, getNameAndLocalizedName } from "../helpers/sharedFunctions.ts";
 import { auth } from "./auth.ts";
-import { type DbTransactionType, db } from "./db/provider.ts";
-import { eventsPublicCols, eventsTable } from "./db/schema/events.ts";
-import { recordConfigsPublicCols, recordConfigsTable } from "./db/schema/record-configs.ts";
-import { resultsTable, type SelectResult } from "./db/schema/results.ts";
 import type { CcPermissions } from "./permissions.ts";
 
 export async function checkUserPermissions(userId: string, permissions: CcPermissions): Promise<boolean> {
@@ -51,14 +51,15 @@ export async function authorizeUser({
 export function logMessage(code: LogCode, message: string) {
   const messageWithCode = `[${code}] ${message}`;
 
-  // If not in test environment, log to console too (tests use a different implementation of the logger that logs straight to console)
-  if (!process.env.VITEST) console.log(messageWithCode);
+  console.log(messageWithCode);
 
-  try {
-    // The metadata is then handled in loggerUtils.js
-    logger.child({ ccCode: code }).info(messageWithCode);
-  } catch (err) {
-    console.error("Error while sending log to Supabase Analytics:", err);
+  if (!process.env.VITEST) {
+    try {
+      // The metadata is then handled in loggerUtils.js
+      logger.child({ ccCode: code }).info(messageWithCode);
+    } catch (err) {
+      console.error("Error while sending log to Supabase Analytics:", err);
+    }
   }
 }
 
@@ -93,10 +94,16 @@ export async function getRecordResult(
   recordType: RecordType,
   recordCategory: RecordCategory,
   {
+    tx,
     recordsUpTo = getDateOnly(new Date())!,
     excludeResultId,
     regionCode,
-  }: { recordsUpTo?: Date; excludeResultId?: number; regionCode?: string } = {
+  }: {
+    tx?: DbTransactionType; // this can optionally be run inside of a transaction
+    recordsUpTo?: Date;
+    excludeResultId?: number;
+    regionCode?: string;
+  } = {
     recordsUpTo: getDateOnly(new Date())!,
   },
 ): Promise<SelectResult | undefined> {
@@ -116,7 +123,7 @@ export async function getRecordResult(
     throw new Error(`Unknown region code: ${regionCode}`);
   }
 
-  const [recordResult] = await db
+  const [recordResult] = await (tx ?? db)
     .select()
     .from(resultsTable)
     .where(

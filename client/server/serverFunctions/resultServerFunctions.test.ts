@@ -1,5 +1,5 @@
 import { addYears } from "date-fns";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   caPersonJoshCalhoun,
   dePersonHansBauer,
@@ -15,12 +15,17 @@ import {
 import { resultsStub } from "~/__mocks__/stubs/resultsStub.ts";
 import {
   testComp2023_333_oh_bld_team_relay_r1,
+  testComp2023_333_r1,
   testCompJan2020_333_oh_bld_team_relay_r1,
+  testCompJan2025_333_oh_bld_team_relay_r1,
+  testCompJan2025_333_oh_bld_team_relay_r2,
 } from "~/__mocks__/stubs/roundsStub.ts";
+import { getFormattedTime } from "~/helpers/sharedFunctions";
 import { db } from "~/server/db/provider.ts";
 import {
   createContestResultSF,
   createVideoBasedResultSF,
+  deleteContestResultSF,
   getWrPairUpToDateSF,
 } from "~/server/serverFunctions/resultServerFunctions.ts";
 
@@ -43,11 +48,7 @@ describe("getWrPairUpToDateSF", () => {
   });
 
   it("ignores better results from other categories while getting XWR pair", async () => {
-    const res = await getWrPairUpToDateSF({
-      eventId: "444bf",
-      recordCategory: "competitions",
-      recordsUpTo: date,
-    });
+    const res = await getWrPairUpToDateSF({ eventId: "444bf", recordCategory: "competitions", recordsUpTo: date });
 
     expect(res.data).toBeDefined();
     expect(res.data!.eventId).toBe("444bf");
@@ -56,11 +57,7 @@ describe("getWrPairUpToDateSF", () => {
   });
 
   it("ignores better results from other categories while getting MWR pair", async () => {
-    const res = await getWrPairUpToDateSF({
-      eventId: "444bf",
-      recordCategory: "meetups",
-      recordsUpTo: date,
-    });
+    const res = await getWrPairUpToDateSF({ eventId: "444bf", recordCategory: "meetups", recordsUpTo: date });
 
     expect(res.data).toBeDefined();
     expect(res.data!.eventId).toBe("444bf");
@@ -82,11 +79,7 @@ describe("getWrPairUpToDateSF", () => {
   });
 
   it("doesn't get WR average if there are no successful averages for the event yet (also checks that records set on the same day get included)", async () => {
-    const res = await getWrPairUpToDateSF({
-      eventId: "333bf",
-      recordCategory: "competitions",
-      recordsUpTo: date,
-    });
+    const res = await getWrPairUpToDateSF({ eventId: "333bf", recordCategory: "competitions", recordsUpTo: date });
 
     expect(res.data).toBeDefined();
     expect(res.data!.eventId).toBe("333bf");
@@ -115,10 +108,10 @@ describe("createContestResultSF", () => {
     const res = await createContestResultSF({
       newResultDto: {
         eventId: "333_oh_bld_team_relay",
-        personIds: [gbPersonTomDillon, gbPersonSamMarsh, gbPersonJamesStone],
+        personIds: [gbPersonTomDillon.id, gbPersonSamMarsh.id, gbPersonJamesStone.id],
         attempts: [{ result: 10000 }, { result: 10100 }, { result: 10200 }],
         competitionId: "TestComp2023",
-        roundId: testComp2023_333_oh_bld_team_relay_r1,
+        roundId: testComp2023_333_oh_bld_team_relay_r1.id,
       },
     });
 
@@ -143,7 +136,7 @@ describe("createContestResultSF", () => {
           personIds: [1, 2, 1],
           attempts: [{ result: 1234 }],
           competitionId: "TestCompJan2020",
-          roundId: testCompJan2020_333_oh_bld_team_relay_r1,
+          roundId: testCompJan2020_333_oh_bld_team_relay_r1.id,
         },
       });
 
@@ -161,7 +154,7 @@ describe("createContestResultSF", () => {
           personIds: [1, 2, 3],
           attempts: [{ result: 0 }, { result: 0 }, { result: 0 }],
           competitionId: "TestCompJan2020",
-          roundId: testCompJan2020_333_oh_bld_team_relay_r1,
+          roundId: testCompJan2020_333_oh_bld_team_relay_r1.id,
         },
       });
 
@@ -179,7 +172,7 @@ describe("createContestResultSF", () => {
           personIds: [1, 2, 3],
           attempts: [{ result: -2 }, { result: -2 }, { result: -2 }],
           competitionId: "TestCompJan2020",
-          roundId: testCompJan2020_333_oh_bld_team_relay_r1,
+          roundId: testCompJan2020_333_oh_bld_team_relay_r1.id,
         },
       });
 
@@ -191,16 +184,240 @@ describe("createContestResultSF", () => {
     });
   });
 
+  describe("server errors", () => {
+    it("throws error for contest not found", async () => {
+      const competitionId = "INVALID";
+      const res = await createContestResultSF({
+        newResultDto: {
+          eventId: "333_oh_bld_team_relay",
+          personIds: [1, 2, 3],
+          attempts: [{ result: 10000 }, { result: 10100 }, { result: 10200 }],
+          competitionId,
+          roundId: testComp2023_333_oh_bld_team_relay_r1.id,
+        },
+      });
+
+      expect(res.serverError?.message).toBe(`Contest with ID ${competitionId} not found`);
+      expect(res.data).toBeUndefined();
+    });
+
+    it("throws error for no access rights to contest", async () => {
+      vi.stubEnv("TEST_USER", "moderator1");
+
+      const res = await createContestResultSF({
+        newResultDto: {
+          eventId: "333_oh_bld_team_relay",
+          personIds: [1, 2, 3],
+          attempts: [{ result: 10000 }, { result: 10100 }, { result: 10200 }],
+          competitionId: "TestComp2023",
+          roundId: testComp2023_333_oh_bld_team_relay_r1.id,
+        },
+      });
+
+      expect(res.serverError?.message).toBe("You do not have access rights for this contest");
+      expect(res.data).toBeUndefined();
+    });
+
+    it("throws error for invalid event ID", async () => {
+      const eventId = "INVALID";
+      const res = await createContestResultSF({
+        newResultDto: {
+          eventId,
+          personIds: [1],
+          attempts: [{ result: 10000 }, { result: 10100 }, { result: 10200 }],
+          competitionId: "TestComp2023",
+          roundId: testComp2023_333_oh_bld_team_relay_r1.id,
+        },
+      });
+
+      expect(res.serverError?.message).toBe(`Event with ID ${eventId} not found`);
+      expect(res.data).toBeUndefined();
+    });
+
+    it("throws error for invalid round ID", async () => {
+      const roundId = 0;
+      const res = await createContestResultSF({
+        newResultDto: {
+          eventId: "333_oh_bld_team_relay",
+          personIds: [1, 2, 3],
+          attempts: [{ result: 10000 }, { result: 10100 }, { result: 10200 }],
+          competitionId: "TestComp2023",
+          roundId,
+        },
+      });
+
+      expect(res.serverError?.message).toBe(`Round with ID ${roundId} not found`);
+      expect(res.data).toBeUndefined();
+    });
+
+    it("throws error for invalid person ID", async () => {
+      const personId = 999999;
+      const res = await createContestResultSF({
+        newResultDto: {
+          eventId: "333_oh_bld_team_relay",
+          personIds: [1, 2, personId],
+          attempts: [{ result: 10000 }, { result: 10100 }, { result: 10200 }],
+          competitionId: "TestComp2023",
+          roundId: testComp2023_333_oh_bld_team_relay_r1.id,
+        },
+      });
+
+      expect(res.serverError?.message).toBe(`Person with ID ${personId} not found`);
+      expect(res.data).toBeUndefined();
+    });
+
+    it("throws error for wrong number of participants (too few)", async () => {
+      const res = await createContestResultSF({
+        newResultDto: {
+          eventId: "333_oh_bld_team_relay",
+          personIds: [1, 2],
+          attempts: [{ result: 10000 }, { result: 10100 }, { result: 10200 }],
+          competitionId: "TestComp2023",
+          roundId: testComp2023_333_oh_bld_team_relay_r1.id,
+        },
+      });
+
+      expect(res.serverError?.message).toBe("This event must have 3 participants");
+      expect(res.data).toBeUndefined();
+    });
+
+    it("throws error for second result in the same round for the same competitor", async () => {
+      const resultFrom_333_oh_bld_team_relay_Round = await db.query.results.findFirst({
+        where: { eventId: "333_oh_bld_team_relay", roundId: testCompJan2020_333_oh_bld_team_relay_r1.id },
+      });
+      const res = await createContestResultSF({
+        newResultDto: {
+          eventId: "333_oh_bld_team_relay",
+          personIds: resultFrom_333_oh_bld_team_relay_Round!.personIds,
+          attempts: [{ result: 10000 }, { result: 10100 }, { result: 10200 }],
+          competitionId: resultFrom_333_oh_bld_team_relay_Round!.competitionId!,
+          roundId: resultFrom_333_oh_bld_team_relay_Round!.roundId!,
+        },
+      });
+
+      expect(res.serverError?.message).toBe("The competitor(s) already has a result in this round");
+      expect(res.data).toBeUndefined();
+    });
+
+    it("throws error for one of the competitors not proceeding to subsequent round", async () => {
+      const resultFrom_333_oh_bld_team_relay_FirstRound = await db.query.results.findFirst({
+        where: {
+          eventId: "333_oh_bld_team_relay",
+          roundId: testCompJan2025_333_oh_bld_team_relay_r1.id,
+          proceeds: false,
+        },
+      });
+      const res = await createContestResultSF({
+        newResultDto: {
+          eventId: "333_oh_bld_team_relay",
+          personIds: resultFrom_333_oh_bld_team_relay_FirstRound!.personIds,
+          attempts: [{ result: 10000 }, { result: 10100 }, { result: 10200 }],
+          competitionId: "TestCompJan2025",
+          roundId: testCompJan2025_333_oh_bld_team_relay_r2.id,
+        },
+      });
+
+      expect(res.serverError?.message).toBe("Competitor 1 has not proceeded to this round");
+      expect(res.data).toBeUndefined();
+    });
+
+    it("throws error for result having too few attempts", async () => {
+      const res = await createContestResultSF({
+        newResultDto: {
+          eventId: "333_oh_bld_team_relay",
+          personIds: [1, 2, 3],
+          attempts: [{ result: 10000 }],
+          competitionId: "TestComp2023",
+          roundId: testComp2023_333_oh_bld_team_relay_r1.id,
+        },
+      });
+
+      expect(res.serverError?.message).toBe("The number of attempts should be 3; received: 1");
+      expect(res.data).toBeUndefined();
+    });
+
+    it("throws error for result not meeting the time limit", async () => {
+      const { id: roundId, timeLimitCentiseconds: timeLimit } = testComp2023_333_oh_bld_team_relay_r1;
+      const res = await createContestResultSF({
+        newResultDto: {
+          eventId: "333_oh_bld_team_relay",
+          personIds: [1, 2, 3],
+          attempts: [{ result: timeLimit! + 1 }, { result: 1234 }, { result: 1234 }],
+          competitionId: "TestComp2023",
+          roundId,
+        },
+      });
+
+      expect(res.serverError?.message).toBe(`This round has a time limit of ${getFormattedTime(timeLimit!)}`);
+      expect(res.data).toBeUndefined();
+    });
+
+    it("throws error for result not meeting the cumulative time limit", async () => {
+      const { id: roundId, timeLimitCentiseconds: timeLimit } = testComp2023_333_oh_bld_team_relay_r1;
+      const res = await createContestResultSF({
+        newResultDto: {
+          eventId: "333_oh_bld_team_relay",
+          personIds: [1, 2, 3],
+          // First result just barely passes the time limit, but the second one pushes it over the cumulative limit
+          attempts: [{ result: timeLimit! }, { result: 1234 }, { result: 1234 }],
+          competitionId: "TestComp2023",
+          roundId,
+        },
+      });
+
+      expect(res.serverError?.message).toBe(
+        `This round has a cumulative time limit of ${getFormattedTime(timeLimit!)}`,
+      );
+      expect(res.data).toBeUndefined();
+    });
+
+    it("throws error for result that doesn't meet cutoff having too many attempts", async () => {
+      const { id: roundId, cutoffAttemptResult } = testComp2023_333_oh_bld_team_relay_r1;
+      const res = await createContestResultSF({
+        newResultDto: {
+          eventId: "333_oh_bld_team_relay",
+          personIds: [1, 2, 3],
+          attempts: [{ result: cutoffAttemptResult! + 1 }, { result: 1234 }, { result: 1234 }],
+          competitionId: "TestComp2023",
+          roundId,
+        },
+      });
+
+      expect(res.serverError?.message).toBe(`This round has a cutoff of ${getFormattedTime(cutoffAttemptResult!)}`);
+      expect(res.data).toBeUndefined();
+    });
+
+    it("throws error for result that doesn't meet cutoff having too few attempts", async () => {
+      const { id: roundId, cutoffAttemptResult, cutoffNumberOfAttempts } = testComp2023_333_r1;
+      const res = await createContestResultSF({
+        newResultDto: {
+          eventId: "333",
+          personIds: [1],
+          attempts: [{ result: cutoffAttemptResult! + 1 }],
+          competitionId: "TestComp2023",
+          roundId,
+        },
+      });
+
+      expect(res.serverError?.message).toBe(`The number of attempts should be ${cutoffNumberOfAttempts}; received: 1`);
+      expect(res.data).toBeUndefined();
+    });
+  });
+
   describe("Record result creation", () => {
     describe("3x3x3 + OH + BLD Team Relay results", () => {
       const eventId = "333_oh_bld_team_relay";
-      const partialResult = { eventId, competitionId: "TestComp2023", roundId: testComp2023_333_oh_bld_team_relay_r1 };
+      const partialResult = {
+        eventId,
+        competitionId: "TestComp2023",
+        roundId: testComp2023_333_oh_bld_team_relay_r1.id,
+      };
 
       it("creates NR result and cancels future NR", async () => {
         const res = await createContestResultSF({
           newResultDto: {
             ...partialResult,
-            personIds: [gbPersonJamesStone, gbPersonSamMarsh, gbPersonTomDillon],
+            personIds: [gbPersonJamesStone.id, gbPersonSamMarsh.id, gbPersonTomDillon.id],
             attempts: [{ result: 6600 }, { result: 6700 }, { result: 6800 }],
           },
         });
@@ -221,7 +438,7 @@ describe("createContestResultSF", () => {
         const res = await createContestResultSF({
           newResultDto: {
             ...partialResult,
-            personIds: [gbPersonJamesStone, gbPersonSamMarsh, gbPersonTomDillon],
+            personIds: [gbPersonJamesStone.id, gbPersonSamMarsh.id, gbPersonTomDillon.id],
             attempts: [{ result: 6200 }, { result: 6300 }, { result: 6400 }],
           },
         });
@@ -253,7 +470,7 @@ describe("createContestResultSF", () => {
         const res = await createContestResultSF({
           newResultDto: {
             ...partialResult,
-            personIds: [dePersonStefanSteinmeier, gbPersonSamMarsh, gbPersonTomDillon],
+            personIds: [dePersonStefanSteinmeier.id, gbPersonSamMarsh.id, gbPersonTomDillon.id],
             attempts: [{ result: 6200 }, { result: 6300 }, { result: 6400 }],
           },
         });
@@ -285,7 +502,7 @@ describe("createContestResultSF", () => {
         const res = await createContestResultSF({
           newResultDto: {
             ...partialResult,
-            personIds: [gbPersonJamesStone, gbPersonSamMarsh, gbPersonTomDillon],
+            personIds: [gbPersonJamesStone.id, gbPersonSamMarsh.id, gbPersonTomDillon.id],
             attempts: [{ result: 5500 }, { result: 5600 }, { result: 5700 }],
           },
         });
@@ -332,7 +549,7 @@ describe("createContestResultSF", () => {
         const res = await createContestResultSF({
           newResultDto: {
             ...partialResult,
-            personIds: [dePersonStefanSteinmeier, gbPersonSamMarsh, gbPersonTomDillon],
+            personIds: [dePersonStefanSteinmeier.id, gbPersonSamMarsh.id, gbPersonTomDillon.id],
             attempts: [{ result: 5500 }, { result: 5600 }, { result: 5700 }],
           },
         });
@@ -374,7 +591,7 @@ describe("createContestResultSF", () => {
         const res = await createContestResultSF({
           newResultDto: {
             ...partialResult,
-            personIds: [dePersonStefanSteinmeier, gbPersonSamMarsh, caPersonJoshCalhoun],
+            personIds: [dePersonStefanSteinmeier.id, gbPersonSamMarsh.id, caPersonJoshCalhoun.id],
             attempts: [{ result: 5500 }, { result: 5600 }, { result: 5700 }],
           },
         });
@@ -405,6 +622,155 @@ describe("createContestResultSF", () => {
         });
         expect(wrChangedToCr2?.regionalSingleRecord).toBe("ER");
         expect(wrChangedToCr2?.regionalAverageRecord).toBe("ER");
+      });
+    });
+  });
+});
+
+describe("deleteContestResultSF", () => {
+  it("deletes non-record result", async () => {
+    const nonRecordResult = await db.query.results.findFirst({
+      where: {
+        recordCategory: "meetups",
+        regionalSingleRecord: { isNull: true },
+        regionalAverageRecord: { isNull: true },
+      },
+    });
+    const res = await deleteContestResultSF({ id: nonRecordResult!.id });
+
+    expect(res.serverError).toBeUndefined();
+    expect(res.validationErrors).toBeUndefined();
+    expect(res.data).toBeDefined();
+  });
+
+  describe("server errors", () => {
+    it("throws error for invalid result ID", async () => {
+      const id = 0;
+      const res = await deleteContestResultSF({ id });
+
+      expect(res.serverError?.message).toBe(`Result with ID ${id} not found`);
+      expect(res.data).toBeUndefined();
+    });
+
+    it("throws error for non-contest result", async () => {
+      const videoBasedResult = await db.query.results.findFirst({ where: { recordCategory: "video-based-results" } });
+      const res = await deleteContestResultSF({ id: videoBasedResult!.id });
+
+      expect(res.serverError?.message).toBe(`Result with ID ${videoBasedResult!.id} not found`);
+      expect(res.data).toBeUndefined();
+    });
+
+    it("throws error for no access rights to contest", async () => {
+      vi.stubEnv("TEST_USER", "moderator1");
+
+      const res = await deleteContestResultSF({ id: 1 });
+
+      expect(res.serverError?.message).toBe("You do not have access rights for this contest");
+      expect(res.data).toBeUndefined();
+    });
+  });
+
+  describe("Record result deletion (sometimes leading to future records being set)", () => {
+    describe("3x3x3 Blindfolded 2-man Relay results", () => {
+      const eventId = "333bf_2_person_relay";
+
+      it("deletes NR result and sets prevented future NR", async () => {
+        const res = await deleteContestResultSF({ id: 13 });
+
+        expect(res.serverError).toBeUndefined();
+        expect(res.validationErrors).toBeUndefined();
+        expect(res.data?.length).toBe(2);
+
+        const newNr = await db.query.results.findFirst({ where: { id: 17, eventId } });
+        expect(newNr?.regionalSingleRecord).toBe("NR");
+        expect(newNr?.regionalAverageRecord).toBe("NR");
+      });
+
+      it("deletes CR result (no reg. code), sets prevented future CR (no reg. code) and changes future NR to CR", async () => {
+        const res = await deleteContestResultSF({ id: 10 });
+
+        expect(res.serverError).toBeUndefined();
+        expect(res.validationErrors).toBeUndefined();
+        expect(res.data?.length).toBe(2);
+
+        const nrChangedToCr = await db.query.results.findFirst({ where: { id: 16, eventId } });
+        expect(nrChangedToCr?.regionalSingleRecord).toBe("AsR");
+        expect(nrChangedToCr?.regionalAverageRecord).toBe("AsR");
+        const newCr = await db.query.results.findFirst({ where: { id: 18, eventId } });
+        expect(newCr?.regionalSingleRecord).toBe("AsR");
+        expect(newCr?.regionalAverageRecord).toBe("AsR");
+      });
+
+      it("deletes CR result, sets prevented future CR, sets prevented future NR and changes future NR to CR", async () => {
+        const res = await deleteContestResultSF({ id: 8 });
+
+        expect(res.serverError).toBeUndefined();
+        expect(res.validationErrors).toBeUndefined();
+        expect(res.data?.length).toBe(2);
+
+        const newCr = await db.query.results.findFirst({ where: { id: 11, eventId } });
+        expect(newCr?.regionalSingleRecord).toBe("ER");
+        expect(newCr?.regionalAverageRecord).toBe("ER");
+        const nrChangedToCr = await db.query.results.findFirst({ where: { id: 13, eventId } });
+        expect(nrChangedToCr?.regionalSingleRecord).toBe("ER");
+        expect(nrChangedToCr?.regionalAverageRecord).toBe("ER");
+        const newNr = await db.query.results.findFirst({ where: { id: 19, eventId } });
+        expect(newNr?.regionalSingleRecord).toBe("NR");
+        expect(newNr?.regionalAverageRecord).toBe("NR");
+      });
+
+      it("deletes WR result (no s-reg. code), sets prevented future WR (no s-reg. code) and changes CR set on the same day to WR", async () => {
+        const res = await deleteContestResultSF({ id: 6 });
+
+        expect(res.serverError).toBeUndefined();
+        expect(res.validationErrors).toBeUndefined();
+        expect(res.data?.length).toBe(2);
+
+        const crChangedToWr = await db.query.results.findFirst({ where: { id: 7, eventId } });
+        expect(crChangedToWr?.regionalSingleRecord).toBe("WR");
+        expect(crChangedToWr?.regionalAverageRecord).toBe("WR");
+        const newWr = await db.query.results.findFirst({ where: { id: 9, eventId } });
+        expect(newWr?.regionalSingleRecord).toBe("WR");
+        expect(newWr?.regionalAverageRecord).toBe("WR");
+      });
+
+      it("deletes WR result (no reg. code), sets prevented future CR (no reg. code), sets prevented future WR (no reg. code), changes future NR to CR", async () => {
+        const res = await deleteContestResultSF({ id: 2 });
+
+        expect(res.serverError).toBeUndefined();
+        expect(res.validationErrors).toBeUndefined();
+        expect(res.data?.length).toBe(1);
+
+        const newCr = await db.query.results.findFirst({ where: { id: 3, eventId } });
+        expect(newCr?.regionalSingleRecord).toBe("ER");
+        expect(newCr?.regionalAverageRecord).toBe("ER");
+        const newWr = await db.query.results.findFirst({ where: { id: 4, eventId } });
+        expect(newWr?.regionalSingleRecord).toBe("WR");
+        expect(newWr?.regionalAverageRecord).toBe("WR");
+        const nrChangedToCr = await db.query.results.findFirst({ where: { id: 5, eventId } });
+        expect(nrChangedToCr?.regionalSingleRecord).toBe("ER");
+        expect(nrChangedToCr?.regionalAverageRecord).toBe("ER");
+      });
+
+      it("deletes WR result, sets prevented future CR and sets prevented future NR, changes future NR to CR and changes future CR to WR", async () => {
+        const res = await deleteContestResultSF({ id: 12 });
+
+        expect(res.serverError).toBeUndefined();
+        expect(res.validationErrors).toBeUndefined();
+        expect(res.data?.length).toBe(2);
+
+        const newCr = await db.query.results.findFirst({ where: { id: 21, eventId } });
+        expect(newCr?.regionalSingleRecord).toBe("NAR");
+        expect(newCr?.regionalAverageRecord).toBe("NAR");
+        const newNr = await db.query.results.findFirst({ where: { id: 14, eventId } });
+        expect(newNr?.regionalSingleRecord).toBe("NR");
+        expect(newNr?.regionalAverageRecord).toBe("NR");
+        const nrChangedToCr = await db.query.results.findFirst({ where: { id: 15, eventId } });
+        expect(nrChangedToCr?.regionalSingleRecord).toBe("NAR");
+        expect(nrChangedToCr?.regionalAverageRecord).toBe("NAR");
+        const crChangedToWr = await db.query.results.findFirst({ where: { id: 20, eventId } });
+        expect(crChangedToWr?.regionalSingleRecord).toBe("WR");
+        expect(crChangedToWr?.regionalAverageRecord).toBe("WR");
       });
     });
   });
@@ -526,6 +892,23 @@ describe("createVideoBasedResultSF", () => {
       expect(res.data).toBeUndefined();
     });
 
+    it("throws error for invalid person ID", async () => {
+      const personId = 999999;
+      const res = await createVideoBasedResultSF({
+        newResultDto: {
+          eventId: "444bf",
+          date,
+          personIds: [personId],
+          attempts: [{ result: 1234 }],
+          videoLink: "https://example.com",
+          discussionLink: null,
+        },
+      });
+
+      expect(res.serverError?.message).toBe(`Person with ID ${personId} not found`);
+      expect(res.data).toBeUndefined();
+    });
+
     it("throws error for wrong number of participants (too few)", async () => {
       const res = await createVideoBasedResultSF({
         newResultDto: {
@@ -568,7 +951,7 @@ describe("createVideoBasedResultSF", () => {
         const res = await createVideoBasedResultSF({
           newResultDto: {
             ...partialResult,
-            personIds: [usPersonJohnDoe],
+            personIds: [usPersonJohnDoe.id],
             attempts: [{ result: 8800 }, { result: 8900 }, { result: 9000 }],
           },
         });
@@ -589,7 +972,7 @@ describe("createVideoBasedResultSF", () => {
         const res = await createVideoBasedResultSF({
           newResultDto: {
             ...partialResult,
-            personIds: [usPersonJohnDoe],
+            personIds: [usPersonJohnDoe.id],
             attempts: [{ result: 8300 }, { result: 8400 }, { result: 8500 }],
           },
         });
@@ -615,7 +998,7 @@ describe("createVideoBasedResultSF", () => {
         const res = await createVideoBasedResultSF({
           newResultDto: {
             ...partialResult,
-            personIds: [krPersonDongJunHyon],
+            personIds: [krPersonDongJunHyon.id],
             attempts: [{ result: 7800 }, { result: 7900 }, { result: 8000 }],
           },
         });
@@ -630,7 +1013,7 @@ describe("createVideoBasedResultSF", () => {
         const res = await createVideoBasedResultSF({
           newResultDto: {
             ...partialResult,
-            personIds: [dePersonHansBauer],
+            personIds: [dePersonHansBauer.id],
             attempts: [{ result: 7300 }, { result: 7400 }, { result: 7500 }],
           },
         });
@@ -645,7 +1028,7 @@ describe("createVideoBasedResultSF", () => {
         const res = await createVideoBasedResultSF({
           newResultDto: {
             ...partialResult,
-            personIds: [krPersonSooMinNam],
+            personIds: [krPersonSooMinNam.id],
             attempts: [{ result: 6800 }, { result: 6900 }, { result: 7000 }],
           },
         });
@@ -666,7 +1049,7 @@ describe("createVideoBasedResultSF", () => {
         const res = await createVideoBasedResultSF({
           newResultDto: {
             ...partialResult,
-            personIds: [dePersonJakobBach],
+            personIds: [dePersonJakobBach.id],
             attempts: [{ result: 5000 }, { result: 5100 }, { result: 5200 }],
           },
         });
@@ -696,7 +1079,7 @@ describe("createVideoBasedResultSF", () => {
         const res = await createVideoBasedResultSF({
           newResultDto: {
             ...partialResult,
-            personIds: [krPersonSooMinNam],
+            personIds: [krPersonSooMinNam.id],
             attempts: [{ result: 5000 }, { result: 5100 }, { result: 5200 }],
           },
         });
@@ -731,7 +1114,7 @@ describe("createVideoBasedResultSF", () => {
         const res = await createVideoBasedResultSF({
           newResultDto: {
             ...partialResult,
-            personIds: [usPersonJohnDoe],
+            personIds: [usPersonJohnDoe.id],
             attempts: [{ result: 5000 }, { result: 5100 }, { result: 5200 }],
           },
         });
@@ -772,7 +1155,7 @@ describe("createVideoBasedResultSF", () => {
           const res = await createVideoBasedResultSF({
             newResultDto: {
               ...partialResult,
-              personIds: [usPersonJohnDoe],
+              personIds: [usPersonJohnDoe.id],
               attempts: [{ result: 9000 }, { result: 9100 }, { result: 9200 }],
             },
           });
@@ -787,7 +1170,7 @@ describe("createVideoBasedResultSF", () => {
           const res = await createVideoBasedResultSF({
             newResultDto: {
               ...partialResult,
-              personIds: [usPersonJohnDoe],
+              personIds: [usPersonJohnDoe.id],
               attempts: [{ result: 8900 }, { result: 9000 }, { result: 9100 }],
             },
           });
@@ -808,7 +1191,7 @@ describe("createVideoBasedResultSF", () => {
           const res = await createVideoBasedResultSF({
             newResultDto: {
               ...partialResult,
-              personIds: [usPersonJohnDoe],
+              personIds: [usPersonJohnDoe.id],
               attempts: [{ result: 8500 }, { result: 8600 }, { result: 8700 }],
             },
           });
@@ -829,7 +1212,7 @@ describe("createVideoBasedResultSF", () => {
           const res = await createVideoBasedResultSF({
             newResultDto: {
               ...partialResult,
-              personIds: [usPersonJohnDoe],
+              personIds: [usPersonJohnDoe.id],
               attempts: [{ result: 8400 }, { result: 8500 }, { result: 8600 }],
             },
           });
@@ -855,7 +1238,7 @@ describe("createVideoBasedResultSF", () => {
           const res = await createVideoBasedResultSF({
             newResultDto: {
               ...partialResult,
-              personIds: [usPersonJohnDoe],
+              personIds: [usPersonJohnDoe.id],
               attempts: [{ result: 6500 }, { result: 6600 }, { result: 6700 }],
             },
           });
@@ -880,7 +1263,7 @@ describe("createVideoBasedResultSF", () => {
           const res = await createVideoBasedResultSF({
             newResultDto: {
               ...partialResult,
-              personIds: [usPersonJohnDoe],
+              personIds: [usPersonJohnDoe.id],
               attempts: [{ result: 6400 }, { result: 6500 }, { result: 6600 }],
             },
           });
@@ -910,7 +1293,7 @@ describe("createVideoBasedResultSF", () => {
           const res = await createVideoBasedResultSF({
             newResultDto: {
               ...partialResult,
-              personIds: [dePersonJakobBach],
+              personIds: [dePersonJakobBach.id],
               date: new Date(2020, 5, 1), // same date as German NR by Hans Bauer
               attempts: [{ result: 7600 }, { result: 7700 }, { result: 7800 }],
             },
@@ -926,7 +1309,7 @@ describe("createVideoBasedResultSF", () => {
           const res = await createVideoBasedResultSF({
             newResultDto: {
               ...partialResult,
-              personIds: [dePersonJakobBach],
+              personIds: [dePersonJakobBach.id],
               date: new Date(2020, 5, 1), // same date as German NR by Hans Bauer
               attempts: [{ result: 7200 }, { result: 7300 }, { result: 7400 }],
             },

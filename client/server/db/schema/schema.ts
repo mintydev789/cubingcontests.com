@@ -1,13 +1,5 @@
 import { pgSchema } from "drizzle-orm/pg-core";
 
-export const ccSchema = pgSchema("cubing_contests");
+if (!process.env.CC_DB_SCHEMA) throw new Error("CC_DB_SCHEMA environment variable not set!");
 
-// THIS IS ONLY USED FOR THE VITEST DRIZZLE SETUP!
-// export * from "./auth-schema.ts";
-// export * from "./collective-solutions.ts";
-// export * from "./contests.ts";
-// export * from "./events.ts";
-// export * from "./persons.ts";
-// export * from "./record-configs.ts";
-// export * from "./results.ts";
-// export * from "./rounds.ts";
+export const ccSchema = pgSchema(process.env.CC_DB_SCHEMA);
