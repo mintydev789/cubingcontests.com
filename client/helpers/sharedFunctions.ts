@@ -54,7 +54,7 @@ export const setResultWorldRecords = (
   const comparisonToRecordSingle = compareSingles(result, { best: eventWrPair.best ?? Infinity });
   if (result.best > 0 && comparisonToRecordSingle <= 0) result.regionalSingleRecord = "WR";
 
-  if (result.attempts.length === getDefaultAverageAttempts(event)) {
+  if (result.attempts.length === getDefaultAverageAttempts(event.defaultRoundFormat)) {
     const comparisonToRecordAvg = compareAvgs(result, { average: eventWrPair.average ?? Infinity });
     if (result.average > 0 && comparisonToRecordAvg <= 0) result.regionalAverageRecord = "WR";
   }
@@ -229,8 +229,8 @@ export function getBestAndAverage(
 export const getIsProceedableResult = (result: ResultResponse, roundFormat: RoundFormatObject): boolean =>
   (roundFormat.isAverage && result.average > 0) || result.best > 0;
 
-export const getDefaultAverageAttempts = (event: EventResponse) => {
-  const roundFormat = roundFormats.find((rf) => rf.value === event.defaultRoundFormat)!;
+export const getDefaultAverageAttempts = (eventDefaultRoundFormat: RoundFormat) => {
+  const roundFormat = roundFormats.find((rf) => rf.value === eventDefaultRoundFormat)!;
   return roundFormat.attempts === 5 ? 5 : 3;
 };
 

@@ -14,16 +14,18 @@ const memo = z
   .max(C.maxTime - 1)
   .optional();
 
+export const AttemptsValidator = z
+  .array(z.strictObject({ result: z.int(), memo }))
+  .min(1)
+  .max(5)
+  .refine((val) => val.some((a) => a.result !== -2) && val.some((a) => a.result !== 0), {
+    error: "You cannot submit only DNS attempts or only empty attempts",
+  });
+
 export const ResultValidator = z.strictObject({
   eventId: z.string().nonempty(),
   personIds,
-  attempts: z
-    .array(z.strictObject({ result: z.int(), memo }))
-    .min(1)
-    .max(5)
-    .refine((val) => val.some((a) => a.result !== -2) && val.some((a) => a.result !== 0), {
-      error: "You cannot submit only DNS attempts or only empty attempts",
-    }),
+  attempts: AttemptsValidator,
   competitionId: z.string().nonempty(),
   roundId: z.int(),
 });

@@ -42,9 +42,7 @@ function MainLayout({ children, initSession }: Props) {
 
   const changeErrorMessages = (newErrorMessages: string[]) => {
     // Don't change error messages from [] to [], cause that would trigger an unnecessary rerender
-    if (errorMessages.length > 0 || newErrorMessages.length > 0) {
-      setErrorMessages(newErrorMessages);
-    }
+    if (errorMessages.length > 0 || newErrorMessages.length > 0) setErrorMessages(newErrorMessages);
     setSuccessMessage("");
   };
 

@@ -35,6 +35,7 @@ import {
   createContestResultSF,
   deleteContestResultSF,
   getWrPairUpToDateSF,
+  updateContestResultSF,
 } from "~/server/serverFunctions/resultServerFunctions.ts";
 
 type Props = {
@@ -57,11 +58,12 @@ function DataEntryScreen({
   recordConfigs,
 }: Props) {
   const pathname = usePathname();
-  const { changeErrorMessages } = useContext(MainContext);
+  const { changeErrorMessages, resetMessages } = useContext(MainContext);
 
   const { executeAsync: getWrPairUpToDate, isPending: isPendingWrPairs } = useAction(getWrPairUpToDateSF);
   const { executeAsync: getPersonById, isPending: isGettingPerson } = useAction(getPersonByIdSF);
   const { executeAsync: createResult, isPending: isCreating } = useAction(createContestResultSF);
+  const { executeAsync: updateResult, isPending: isUpdating } = useAction(updateContestResultSF);
   const { executeAsync: deleteResult, isPending: isDeleting } = useAction(deleteContestResultSF);
   const { executeAsync: openRound, isPending: isOpeningRound } = useAction(openRoundSF);
   const [resultUnderEdit, setResultUnderEdit] = useState<ResultResponse | null>(null);
@@ -84,7 +86,7 @@ function DataEntryScreen({
     [rounds],
   );
 
-  const isPending = isCreating || isDeleting || isOpeningRound || isGettingPerson || isPendingWrPairs;
+  const isPending = isCreating || isUpdating || isDeleting || isOpeningRound || isGettingPerson || isPendingWrPairs;
   const maxAllowedRounds = getMaxAllowedRounds(rounds, results);
   const isOpenableRound = !round.open && maxAllowedRounds >= round.roundNumber;
   const lastActiveAttempt = getMakesCutoff(attempts, round.cutoffAttemptResult, round.cutoffNumberOfAttempts)
@@ -99,6 +101,11 @@ function DataEntryScreen({
   useEffect(() => {
     document.getElementById("Competitor_1")?.focus();
   }, [round]);
+
+  // Focus the first attempt input on result edit
+  useEffect(() => {
+    if (resultUnderEdit) document.getElementById("attempt_1")?.focus();
+  }, [resultUnderEdit]);
 
   //////////////////////////////////////////////////////////////////////////////
   // FUNCTIONS
@@ -116,12 +123,16 @@ function DataEntryScreen({
     if (!parsed.success) {
       changeErrorMessages([z.prettifyError(parsed.error)]);
     } else {
-      const res = await createResult({ newResultDto: parsed.data });
+      resetMessages();
+      const res = resultUnderEdit
+        ? await updateResult({ id: resultUnderEdit.id, newAttempts: parsed.data.attempts })
+        : await createResult({ newResultDto: parsed.data });
 
       if (res.serverError || res.validationErrors) {
         changeErrorMessages([getActionError(res)]);
       } else {
-        addNewPersonsToList();
+        if (resultUnderEdit) setResultUnderEdit(null);
+        else addNewPersonsToList();
         resetSelectedPersonsAndAttempts();
         // This assumes that there is only one result per person in a given round, which should always be the case
         const result = res.data!.find(
@@ -132,28 +143,6 @@ function DataEntryScreen({
         updateEventWrPair(result);
       }
     }
-
-    // if (resultUnderEdit === null) {
-    //   const res = await myFetch.post(`/results/${contest.competitionId}/${round.roundId}`, resultDto, {
-    //     loadingId: "submit_attempt_button",
-    //   });
-    //   if (!res.success) tempErrors = res.error;
-    //   else updatedRound = res.data;
-    // } else {
-    //   const updateResultDto: IUpdateResultDto = {
-    //     personIds: resultDto.personIds,
-    //     attempts: resultDto.attempts,
-    //   };
-    //   const res = await myFetch.patch(`/results/${(resultUnderEdit as any)._id}`, updateResultDto, {
-    //     loadingId: "submit_attempt_button",
-    //   });
-    //   if (!res.success) {
-    //     tempRrrors = res.error;
-    //   } else {
-    //     setResultUnderEdit(null);
-    //     updatedRound = res.data;
-    //   }
-    // }
   };
 
   const addNewPersonsToList = (newSelectedPersons = selectedPersons as PersonResponse[]) => {
@@ -203,29 +192,22 @@ function DataEntryScreen({
   const onSelectPerson = (person: PersonResponse) => {
     if (selectedPersons.every((p) => p === null)) {
       const existingResultForSelectedPerson = results.find((r) => r.personIds.includes(person.id));
-      if (existingResultForSelectedPerson) editResult(existingResultForSelectedPerson);
+      if (existingResultForSelectedPerson) onEditResult(existingResultForSelectedPerson);
     }
   };
 
-  const editResult = (result: ResultResponse) => {
-    throw new Error("NOT IMPLEMENTED!");
-
-    // resetMessages();
-    // setResultUnderEdit(result);
-    // setAttempts(
-    //   getMakesCutoff(result.attempts, round.cutoff)
-    //     ? result.attempts
-    //     : [
-    //         ...result.attempts,
-    //         ...new Array(roundFormat.attempts - (round.cutoff as ICutoff).numberOfAttempts).fill({ result: 0 }),
-    //       ],
-    // );
-    // const newCurrentPersons: PersonResponse[] = result.personIds.map(
-    //   (pid) => persons.find((p: PersonResponse) => p.personId === pid)!,
-    // );
-    // setSelectedPersons(newCurrentPersons);
-    // setPersonNames(newCurrentPersons.map((p) => p.name));
-    // window.scrollTo(0, 0);
+  const onEditResult = (result: ResultResponse) => {
+    resetMessages();
+    setResultUnderEdit(result);
+    setAttempts(
+      getMakesCutoff(result.attempts, round.cutoffAttemptResult, round.cutoffNumberOfAttempts)
+        ? result.attempts
+        : [...result.attempts, ...new Array(roundFormat.attempts - round.cutoffNumberOfAttempts!).fill({ result: 0 })],
+    );
+    const newCurrentPersons: PersonResponse[] = result.personIds.map((pid) => persons.find((p) => p.id === pid)!);
+    setSelectedPersons(newCurrentPersons);
+    setPersonNames(newCurrentPersons.map((p) => p.name));
+    window.scrollTo(0, 0);
   };
 
   const onDeleteResult = async (id: number) => {
@@ -287,6 +269,7 @@ function DataEntryScreen({
       roundId: round.id,
     };
 
+    resetMessages();
     const res = await createResult({ newResultDto });
 
     if (res.serverError || res.validationErrors) {
@@ -325,7 +308,7 @@ function DataEntryScreen({
               nextFocusTargetId="attempt_1"
               addNewPersonMode="default"
               redirectToOnAddPerson={`${pathname}?eventId=${eventId}`}
-              disabled={!round.open || isPending}
+              disabled={!round.open || resultUnderEdit !== null || isPending}
               display="basic"
             />
             {attempts.map((attempt: Attempt, i: number) => (
@@ -358,7 +341,7 @@ function DataEntryScreen({
               id="submit_attempt_button"
               onClick={submitResult}
               disabled={!round.open || isPending}
-              isLoading={isCreating}
+              isLoading={isCreating || isUpdating}
               className="d-block mt-3"
             >
               Submit
@@ -417,7 +400,7 @@ function DataEntryScreen({
               results={results.filter((r) => r.roundId === round.id).sort((a, b) => a.ranking! - b.ranking!)}
               persons={persons}
               recordConfigs={recordConfigs}
-              onEditResult={round.open ? editResult : undefined}
+              onEditResult={round.open ? onEditResult : undefined}
               onDeleteResult={round.open ? onDeleteResult : undefined}
               disableEditAndDelete={resultUnderEdit !== null}
               loadingId={loadingId}

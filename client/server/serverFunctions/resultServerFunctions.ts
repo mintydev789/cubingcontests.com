@@ -18,11 +18,11 @@ import {
 } from "~/helpers/sharedFunctions.ts";
 import { type ContinentCode, type EventWrPair, RecordCategoryValues, type RecordType } from "~/helpers/types.ts";
 import { getIsAdmin } from "~/helpers/utilityFunctions.ts";
-import { ResultValidator, VideoBasedResultValidator } from "~/helpers/validators/Result.ts";
+import { AttemptsValidator, ResultValidator, VideoBasedResultValidator } from "~/helpers/validators/Result.ts";
 import { contestsTable, type SelectContest } from "~/server/db/schema/contests.ts";
 import type { RoundResponse } from "~/server/db/schema/rounds.ts";
 import { type DbTransactionType, db } from "../db/provider.ts";
-import type { EventResponse } from "../db/schema/events.ts";
+import type { EventResponse, SelectEvent } from "../db/schema/events.ts";
 import type { SelectPerson } from "../db/schema/persons.ts";
 import type { RecordConfigResponse } from "../db/schema/record-configs.ts";
 import {
@@ -53,11 +53,14 @@ export const getWrPairUpToDateSF = actionClient
     }),
   )
   .action<EventWrPair>(async ({ parsedInput: { recordCategory, eventId, recordsUpTo, excludeResultId } }) => {
-    const singleWrResult = await getRecordResult(eventId, "best", "WR", recordCategory, {
+    const event = await db.query.events.findFirst({ where: { eventId } });
+    if (!event) throw new CcActionError(`Event with ID ${eventId} not found`);
+
+    const singleWrResult = await getRecordResult(event, "best", "WR", recordCategory, {
       recordsUpTo,
       excludeResultId,
     });
-    const averageWrResult = await getRecordResult(eventId, "average", "WR", recordCategory, {
+    const averageWrResult = await getRecordResult(event, "average", "WR", recordCategory, {
       recordsUpTo,
       excludeResultId,
     });
@@ -225,6 +228,101 @@ export const createContestResultSF = actionClient
     },
   );
 
+export const updateContestResultSF = actionClient
+  .metadata({ permissions: { competitions: ["create"], meetups: ["create"] } })
+  .inputSchema(
+    z.strictObject({
+      id: z.int(),
+      newAttempts: AttemptsValidator,
+    }),
+  )
+  .action<ResultResponse[]>(
+    async ({
+      parsedInput: { id, newAttempts },
+      ctx: {
+        session: { user },
+      },
+    }) => {
+      const result = await db.query.results.findFirst({ where: { id, competitionId: { isNotNull: true } } });
+      if (!result) throw new CcActionError(`Result with ID ${id} not found`);
+
+      logMessage("CC0014", `Updating result with ID ${id} (new attempts: ${JSON.stringify(newAttempts)})`);
+
+      const contestPromise = db.query.contests.findFirst({ where: { competitionId: result.competitionId! } });
+      const eventPromise = db.query.events.findFirst({ where: { eventId: result.eventId } });
+      const roundPromise = db.query.rounds.findFirst({ where: { id: result.roundId! } });
+      const roundResultsPromise = db.query.results.findMany({
+        where: { roundId: result.roundId! },
+        orderBy: { ranking: "asc" },
+      });
+
+      const [contest, event, round, roundResults] = await Promise.all([
+        contestPromise,
+        eventPromise,
+        roundPromise,
+        roundResultsPromise,
+      ]);
+
+      if (!contest) throw new CcActionError(`Contest with ID ${result.competitionId} not found`);
+      if (!getUserHasAccessToContest(user, contest))
+        throw new CcActionError("You do not have access rights for this contest");
+      if (!event) throw new CcActionError(`Event with ID ${result.eventId} not found`);
+      if (!round) throw new CcActionError(`Round with ID ${result.roundId} not found`);
+
+      const recordConfigs = await getRecordConfigs(contest.type === "meetup" ? "meetups" : "competitions");
+      const roundFormat = roundFormats.find((rf) => rf.value === round.format)!;
+      const { best, average } = getBestAndAverage(newAttempts, event.format, roundFormat.value);
+      const newResult: SelectResult = {
+        ...result,
+        attempts: newAttempts,
+        best,
+        average,
+        regionalSingleRecord: null,
+        regionalAverageRecord: null,
+      };
+
+      await setResultRecords(newResult, event, recordConfigs, { excludeResultId: id });
+
+      await db.transaction(async (tx) => {
+        const [updatedResult] = await tx
+          .update(table)
+          .set({
+            attempts: newResult.attempts,
+            best: newResult.best,
+            average: newResult.average,
+            regionalSingleRecord: newResult.regionalSingleRecord,
+            regionalAverageRecord: newResult.regionalAverageRecord,
+          })
+          .where(eq(table.id, id))
+          .returning();
+
+        await setRankingAndProceedsValues(
+          tx,
+          roundResults.map((r) => (r.id === id ? updatedResult : r)),
+          round,
+        );
+
+        // Cancel future records, if the result got better
+        if (updatedResult.regionalSingleRecord && updatedResult.best < result.best)
+          await cancelFutureRecords(tx, updatedResult, "best", recordConfigs);
+        if (updatedResult.regionalAverageRecord && updatedResult.best < result.best)
+          await cancelFutureRecords(tx, updatedResult, "average", recordConfigs);
+
+        // Set records that may have been prevented before, if the result got worse
+        if (result.regionalSingleRecord && updatedResult.best > result.best)
+          await setFutureRecords(tx, result, event, "best", recordConfigs);
+        if (result.regionalAverageRecord && updatedResult.average > result.average)
+          await setFutureRecords(tx, result, event, "average", recordConfigs);
+      });
+
+      return await db
+        .select(resultsPublicCols)
+        .from(table)
+        .where(eq(table.roundId, result.roundId!))
+        .orderBy(table.ranking);
+    },
+  );
+
 export const deleteContestResultSF = actionClient
   .metadata({ permissions: { competitions: ["create"], meetups: ["create"] } })
   .inputSchema(
@@ -264,7 +362,6 @@ export const deleteContestResultSF = actionClient
         throw new CcActionError("You do not have access rights for this contest");
       if (!event) throw new CcActionError(`Event with ID ${result.eventId} not found`);
       if (!round) throw new CcActionError(`Round with ID ${result.roundId} not found`);
-      if (!round.open) throw new CcActionError("The round is not open");
 
       const recordConfigs = await getRecordConfigs(contest.type === "meetup" ? "meetups" : "competitions");
 
@@ -278,8 +375,8 @@ export const deleteContestResultSF = actionClient
         );
 
         // Set records that may have been prevented by the deleted result
-        if (result.regionalSingleRecord) await setFutureRecords(tx, result, "best", recordConfigs);
-        if (result.regionalAverageRecord) await setFutureRecords(tx, result, "average", recordConfigs);
+        if (result.regionalSingleRecord) await setFutureRecords(tx, result, event, "best", recordConfigs);
+        if (result.regionalAverageRecord) await setFutureRecords(tx, result, event, "average", recordConfigs);
 
         const participantIds = await getContestParticipantIds(tx, result.competitionId!);
         if (participantIds.length !== contest.participants) {
@@ -390,15 +487,26 @@ async function setResultRecordsAndRegions(
   if (isSameRegionParticipants) result.regionCode = firstParticipantRegion;
   if (isSameSuperRegionParticipants) result.superRegionCode = firstParticipantSuperRegion;
 
-  if (result.best > 0) await setResultRecord(result, "best", recordConfigs);
-  if (result.average > 0 && result.attempts.length === getDefaultAverageAttempts(event))
-    await setResultRecord(result, "average", recordConfigs);
+  await setResultRecords(result, event, recordConfigs);
+}
+
+async function setResultRecords(
+  result: InsertResult,
+  event: EventResponse,
+  recordConfigs: RecordConfigResponse[], // must be of the same category
+  { excludeResultId }: { excludeResultId?: number } = {},
+) {
+  if (result.best > 0) await setResultRecord(result, event, "best", recordConfigs, { excludeResultId });
+  if (result.average > 0 && result.attempts.length === getDefaultAverageAttempts(event.defaultRoundFormat))
+    await setResultRecord(result, event, "average", recordConfigs, { excludeResultId });
 }
 
 async function setResultRecord(
   result: InsertResult,
+  event: Pick<SelectEvent, "eventId" | "defaultRoundFormat">,
   bestOrAverage: "best" | "average",
   recordConfigs: RecordConfigResponse[], // must be of the same category
+  { excludeResultId }: { excludeResultId?: number } = {},
 ) {
   const recordField = bestOrAverage === "best" ? "regionalSingleRecord" : "regionalAverageRecord";
   const type = bestOrAverage === "best" ? "single" : "average";
@@ -406,7 +514,10 @@ async function setResultRecord(
   const compareFunc = (a: any, b: any) => (bestOrAverage === "best" ? compareSingles(a, b) : compareAvgs(a, b));
 
   // Set WR
-  const wrResult = await getRecordResult(result.eventId, bestOrAverage, "WR", category, { recordsUpTo: result.date });
+  const wrResult = await getRecordResult(event, bestOrAverage, "WR", category, {
+    excludeResultId,
+    recordsUpTo: result.date,
+  });
   const isWr = !wrResult || compareFunc(result, wrResult) <= 0;
 
   if (isWr) {
@@ -420,7 +531,8 @@ async function setResultRecord(
   ) {
     // Set CR
     const crType = ContinentRecordType[result.superRegionCode as ContinentCode];
-    const crResult = await getRecordResult(result.eventId, bestOrAverage, crType, category, {
+    const crResult = await getRecordResult(event, bestOrAverage, crType, category, {
+      excludeResultId,
       recordsUpTo: result.date,
     });
     const isCr = !crResult || compareFunc(result, crResult) <= 0;
@@ -431,7 +543,8 @@ async function setResultRecord(
       result[recordField] = crType;
     } else if (result.regionCode && result.regionCode !== crResult?.regionCode) {
       // Set NR
-      const nrResult = await getRecordResult(result.eventId, bestOrAverage, "NR", category, {
+      const nrResult = await getRecordResult(event, bestOrAverage, "NR", category, {
+        excludeResultId,
         recordsUpTo: result.date,
         regionCode: result.regionCode,
       });
@@ -459,6 +572,7 @@ async function setFutureRecords(
     | "regionalSingleRecord"
     | "regionalAverageRecord"
   >,
+  event: Pick<SelectEvent, "eventId" | "defaultRoundFormat">,
   bestOrAverage: "best" | "average",
   recordConfigs: RecordConfigResponse[],
 ) {
@@ -469,7 +583,7 @@ async function setFutureRecords(
 
   // Set WRs
   if (deletedResult[recordField] === "WR") {
-    const prevWrResult = await getRecordResult(deletedResult.eventId, bestOrAverage, "WR", category, {
+    const prevWrResult = await getRecordResult(event, bestOrAverage, "WR", category, {
       tx,
       recordsUpTo,
     });
@@ -496,7 +610,7 @@ async function setFutureRecords(
         ON ${table.id} = results_with_record_times.id
         WHERE (${table[recordField]} IS NULL OR ${table[recordField]} <> 'WR')
           AND ${table[bestOrAverage]} = results_with_record_times.curr_record`)
-      .then((val: any) => val.rows.map(({ id }: any) => id));
+      .then((val: any) => (process.env.VITEST ? val.rows : val).map(({ id }: any) => id));
 
     const newWrResults = await tx
       .update(table)
@@ -513,7 +627,7 @@ async function setFutureRecords(
   // Set CRs
   if (deletedResult.superRegionCode && deletedResult[recordField] !== "NR") {
     const crType = ContinentRecordType[deletedResult.superRegionCode as ContinentCode];
-    const prevCrResult = await getRecordResult(deletedResult.eventId, bestOrAverage, crType, category, {
+    const prevCrResult = await getRecordResult(event, bestOrAverage, crType, category, {
       tx,
       recordsUpTo,
     });
@@ -541,7 +655,7 @@ async function setFutureRecords(
         ON ${table.id} = results_with_record_times.id
         WHERE (${table[recordField]} IS NULL OR ${table[recordField]} = 'NR')
           AND ${table[bestOrAverage]} = results_with_record_times.curr_record`)
-      .then((val: any) => val.rows.map(({ id }: any) => id));
+      .then((val: any) => (process.env.VITEST ? val.rows : val).map(({ id }: any) => id));
 
     const newCrResults = await tx
       .update(table)
@@ -557,7 +671,7 @@ async function setFutureRecords(
 
   // Set NRs
   if (deletedResult.regionCode) {
-    const prevNrResult = await getRecordResult(deletedResult.eventId, bestOrAverage, "NR", category, {
+    const prevNrResult = await getRecordResult(event, bestOrAverage, "NR", category, {
       tx,
       recordsUpTo,
       regionCode: deletedResult.regionCode,
@@ -587,7 +701,7 @@ async function setFutureRecords(
         ON ${table.id} = results_with_record_times.id
         WHERE ${table[recordField]} IS NULL
           AND ${table[bestOrAverage]} = results_with_record_times.curr_record`)
-      .then((val: any) => val.rows.map(({ id }: any) => id));
+      .then((val: any) => (process.env.VITEST ? val.rows : val).map(({ id }: any) => id));
 
     const newNrResults = await tx
       .update(table)

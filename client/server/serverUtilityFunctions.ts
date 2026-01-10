@@ -1,20 +1,20 @@
 import "server-only";
-import { and, desc, eq, inArray, lte, ne } from "drizzle-orm";
+import { and, eq, gt, lte, ne, sql } from "drizzle-orm";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { Continents, Countries } from "~/helpers/Countries.ts";
+import { Continents } from "~/helpers/Countries.ts";
 import { C } from "~/helpers/constants.ts";
 import { type RecordCategory, type RecordType, RecordTypeValues } from "~/helpers/types.ts";
 import { getIsAdmin } from "~/helpers/utilityFunctions.ts";
 import { type DbTransactionType, db } from "~/server/db/provider.ts";
 import type { ContestResponse } from "~/server/db/schema/contests.ts";
-import { eventsPublicCols, eventsTable } from "~/server/db/schema/events.ts";
+import { eventsPublicCols, eventsTable, type SelectEvent } from "~/server/db/schema/events.ts";
 import type { SelectPerson } from "~/server/db/schema/persons.ts";
 import { recordConfigsPublicCols, recordConfigsTable } from "~/server/db/schema/record-configs.ts";
 import { resultsTable, type SelectResult } from "~/server/db/schema/results.ts";
 import { type LogCode, logger } from "~/server/logger.ts";
 import { CcActionError } from "~/server/safeAction.ts";
-import { getDateOnly, getNameAndLocalizedName } from "../helpers/sharedFunctions.ts";
+import { getDateOnly, getDefaultAverageAttempts, getNameAndLocalizedName } from "../helpers/sharedFunctions.ts";
 import { auth } from "./auth.ts";
 import type { CcPermissions } from "./permissions.ts";
 
@@ -89,7 +89,7 @@ export async function getVideoBasedEvents() {
 }
 
 export async function getRecordResult(
-  eventId: string,
+  event: Pick<SelectEvent, "eventId" | "defaultRoundFormat">,
   bestOrAverage: "best" | "average",
   recordType: RecordType,
   recordCategory: RecordCategory,
@@ -107,37 +107,26 @@ export async function getRecordResult(
     recordsUpTo: getDateOnly(new Date())!,
   },
 ): Promise<SelectResult | undefined> {
-  const recordField = bestOrAverage === "best" ? "regionalSingleRecord" : "regionalAverageRecord";
   const superRegion = Continents.find((c) => c.recordTypeId === recordType);
-  const region = regionCode ? Countries.find((c) => c.code === regionCode) : undefined;
-  const recordTypes: RecordType[] = [];
-
-  if (recordType === "WR") {
-    recordTypes.push("WR");
-  } else if (superRegion) {
-    recordTypes.push(recordType, "WR");
-  } else if (region) {
-    const crType = Continents.find((c) => c.code === region.superRegionCode)!.recordTypeId;
-    recordTypes.push("NR", crType, "WR");
-  } else {
-    throw new Error(`Unknown region code: ${regionCode}`);
-  }
 
   const [recordResult] = await (tx ?? db)
     .select()
     .from(resultsTable)
     .where(
       and(
-        eq(resultsTable.eventId, eventId),
+        eq(resultsTable.eventId, event.eventId),
         excludeResultId ? ne(resultsTable.id, excludeResultId) : undefined,
         lte(resultsTable.date, recordsUpTo),
         eq(resultsTable.recordCategory, recordCategory),
-        inArray(resultsTable[recordField], recordTypes),
+        gt(resultsTable[bestOrAverage], 0),
+        bestOrAverage === "average"
+          ? sql`CARDINALITY(${resultsTable.attempts}) = ${getDefaultAverageAttempts(event.defaultRoundFormat)}`
+          : undefined,
         superRegion ? eq(resultsTable.superRegionCode, superRegion.code) : undefined,
         regionCode ? eq(resultsTable.regionCode, regionCode) : undefined,
       ),
     )
-    .orderBy(desc(resultsTable.date))
+    .orderBy(resultsTable[bestOrAverage])
     .limit(1);
   return recordResult;
 }

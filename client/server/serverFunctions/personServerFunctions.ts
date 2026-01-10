@@ -143,6 +143,7 @@ export const updatePersonSF = actionClient
       const [person] = await db.select().from(table).where(eq(table.id, id)).limit(1);
       if (!person) throw new CcActionError("Person with the provided ID not found");
       if (!canApprove && person.approved) throw new CcActionError("You may not edit a person who has been approved");
+      // TO-DO: WE MAY HAVE TO DO SOMETHING ABOUT PAST RECORDS SET BY THE COMPETITOR WHO IS CHANGING THEIR COUNTRY!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       if (person.regionCode !== newPersonDto.regionCode)
         throw new CcActionError(
           "Changing a person's country is not currently supported. Please contact a developer regarding this.",
