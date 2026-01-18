@@ -216,11 +216,12 @@ function ManageCompetitorsScreen({ persons: initPersons, users }: Props) {
                 </thead>
                 <tbody>
                   {rowVirtualizer.getVirtualItems().map((virtualItem, index) => {
-                    if (filteredPersons.length === 0) return;
+                    if (filteredPersons.length === 0) return undefined;
                     const person = filteredPersons[virtualItem.index];
-                    const personCreator = (person as SelectPerson).createdBy
-                      ? users.find((u) => u.id === (person as SelectPerson).createdBy)
-                      : undefined;
+                    const personCreator =
+                      users && (person as SelectPerson).createdBy
+                        ? users.find((u) => u.id === (person as SelectPerson).createdBy)
+                        : undefined;
 
                     return (
                       <tr

@@ -17,14 +17,16 @@ async function ManageUsersPage() {
 
   if (!res.users) return <LoadingError loadingEntity="users" />;
 
-  const personIds = Array.from(new Set(res.users.filter((u) => u.personId).map((u) => u.personId)));
+  // TO-DO: THIS SHOULDN'T BE NECESSARY!!!!! https://github.com/better-auth/better-auth/issues/7452
+  const users = res.users as (typeof auth.$Infer.Session.user)[];
+  const personIds = Array.from(new Set(users.filter((u) => u.personId).map((u) => u.personId!)));
   const persons = await db.select(personsPublicCols).from(personsTable).where(inArray(personsTable.id, personIds));
 
   return (
     <section>
       <h2 className="mb-4 text-center">Users</h2>
 
-      <ManageUsersScreen users={res.users} userPersons={persons} />
+      <ManageUsersScreen users={users} userPersons={persons} />
     </section>
   );
 }

@@ -1,6 +1,6 @@
-import { INavigationItem } from "~/helpers/types.ts";
+import type { NavigationItem } from "~/helpers/types/NavigationItem";
 
-export const tabs: INavigationItem[] = [
+export const tabs: NavigationItem[] = [
   {
     title: "WCA Competition",
     shortTitle: "WCA",
