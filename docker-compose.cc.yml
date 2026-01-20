@@ -33,7 +33,7 @@ services:
       DATABASE_URL: postgresql://${CC_DB_USERNAME}.${POOLER_TENANT_ID}:${CC_DB_PASSWORD}@supabase-pooler:${POOLER_PROXY_PORT_TRANSACTION}/${POSTGRES_DB}
       CC_DB_SCHEMA: ${CC_DB_SCHEMA}
       EMAIL_API_KEY: ${EMAIL_API_KEY}
-      BETTER_AUTH_URL: ${BETTER_AUTH_URL}
+      BETTER_AUTH_URL: https://${PROD_HOSTNAME} # same as NEXT_PUBLIC_BASE_URL in the publish script
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
       LOGFLARE_API_BASE_URL: http://supabase-analytics:${LOGFLARE_PORT}
       LOGFLARE_PUBLIC_ACCESS_TOKEN: ${LOGFLARE_PUBLIC_ACCESS_TOKEN}
@@ -43,7 +43,7 @@ services:
 networks:
   shared:
     name: cubingcontests_shared
-    external: true # configured in docker-compose.yml
+    external: true # configured in the Supabase Docker Compose file
 volumes:
   caddy_data:
   caddy_config:

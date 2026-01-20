@@ -11,14 +11,14 @@ if [ "$(pwd | tail -c 5)" == "/bin" ]; then
   exit 1
 fi
 
-docker compose -f docker-compose.cubingcontests.yml down
+docker compose -f docker-compose.cc.yml down
 
 if [ "$1" != "--cleanup" ] && [ "$1" != "-c" ]; then
   source .env # needed for the build args
 
   docker build --build-arg PORT="$NEXTJS_PORT" \
-               --build-arg NEXT_PUBLIC_BASE_URL="$LOCAL_BASE_URL" \
+               --build-arg NEXT_PUBLIC_BASE_URL="http://localhost:$NEXTJS_PORT" \
                -t "$DOCKER_IMAGE_NAME" ./client &&
 
-  docker compose -f docker-compose.cubingcontests.yml up
+  docker compose -f docker-compose.cc.yml up
 fi

@@ -15,13 +15,12 @@ if [ "$1" != "--restart" ] && [ "$1" != "-r" ]; then
   sudo apt update &&
   sudo apt dist-upgrade &&
 
-  ./bin/dump-db.sh /dump
+  # TO-DO: MAKE DUMPS WORK AGAIN!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  # ./bin/dump-db.sh /dump
 
   if [ "$?" -gt 0 ]; then
     exit 2
   fi
 fi
 
-sudo docker compose -f docker-compose.cubingcontests.yml down &&
-
-sudo docker compose -f docker-compose.cubingcontests.yml up -d
+sudo docker compose -f docker-compose.cc.yml restart nextjs

@@ -17,7 +17,7 @@ then
 fi
 
 echo "Stopping and removing all containers..."
-docker compose down -v --remove-orphans
+docker compose -f docker-compose.supabase.yml down -v --remove-orphans
 
 echo "Cleaning up bind-mounted directories..."
 BIND_MOUNTS=(

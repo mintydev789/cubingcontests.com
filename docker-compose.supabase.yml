@@ -237,7 +237,7 @@ services:
   #     SEED_SELF_HOST: true
   #     RUN_JANITOR: true
 
-  # To use S3 backed storage: docker compose -f docker-compose.yml -f docker-compose.s3.yml up
+  # To use S3 backed storage: docker compose -f docker-compose.supabase.yml -f docker-compose.s3.yml up
   # storage:
   #   container_name: supabase-storage
   #   image: supabase/storage-api:v1.32.0
