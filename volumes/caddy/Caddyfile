@@ -15,5 +15,5 @@ www.{$PROD_HOSTNAME} {
 }
 
 supabase.{$PROD_HOSTNAME} {
-  reverse_proxy http://supabase-studio:{$KONG_HTTP_PORT}
+  reverse_proxy http://supabase-kong:{$KONG_HTTP_PORT}
 }

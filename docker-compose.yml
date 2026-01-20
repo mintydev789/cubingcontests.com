@@ -12,7 +12,6 @@ services:
     image: supabase/studio:2025.11.26-sha-8f096b5
     networks:
       - supabase
-      - shared
     restart: unless-stopped
     healthcheck:
       test:
@@ -66,6 +65,7 @@ services:
     image: kong:2.8.1
     networks:
       - supabase
+      - shared
     restart: unless-stopped
     ports:
       - 127.0.0.1:${KONG_HTTP_PORT}:8000/tcp

@@ -26,8 +26,6 @@ services:
     image: ${DOCKER_IMAGE_NAME}
     networks:
       - shared
-    ports:
-      - 127.0.0.1:$NEXTJS_PORT:$NEXTJS_PORT
     volumes:
       # THIS IS TEMPORARY!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       - ./client/dump/:/app/dump/:ro
