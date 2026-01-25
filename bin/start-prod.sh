@@ -24,7 +24,7 @@ else
   sudo apt update &&
   sudo apt dist-upgrade &&
 
-  # TO-DO: MAKE DUMPS WORK AGAIN!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  # TO-DO: MAKE DUMPS WORK AGAIN (use Supabase cron)!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   # ./bin/dump-db.sh /dump
 
   sudo docker stop cc-nextjs &&

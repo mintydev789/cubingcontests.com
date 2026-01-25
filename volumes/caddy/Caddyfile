@@ -1,4 +1,28 @@
-# TO-DO: IMPROVE HARDENING!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+{
+  servers {
+    keepalive_interval 60s
+  }
+
+  header {
+    # disable FLoC tracking
+    Permissions-Policy interest-cohort=()
+
+    # enable HSTS
+    Strict-Transport-Security "max-age=31536000; includeSubDomains"
+
+    # disable clients from sniffing the media type
+    X-Content-Type-Options nosniff
+
+    # Other
+    Referrer-Policy strict-origin-when-cross-origin
+    # WIP
+    Content-Security-Policy-Report-Only: "default-src 'self'"
+    # Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:"
+    X-Frame-Options SAMEORIGIN
+    -X-Powered-By # hide "powered by Next JS"
+    via Caddy # hide the Caddy version
+  }
+}
 
 {$PROD_HOSTNAME} {
   reverse_proxy http://cc-nextjs:3000
