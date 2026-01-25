@@ -2,7 +2,9 @@
   servers {
     keepalive_interval 60s
   }
+}
 
+(security) {
   header {
     # disable FLoC tracking
     Permissions-Policy interest-cohort=()
@@ -25,6 +27,8 @@
 }
 
 {$PROD_HOSTNAME} {
+  import security
+
   reverse_proxy http://cc-nextjs:3000
 
   handle_errors 500 502 503 504 {
@@ -35,9 +39,13 @@
 }
 
 www.{$PROD_HOSTNAME} {
+  import security
+
   redir https://{$PROD_HOSTNAME}{uri} permanent
 }
 
 supabase.{$PROD_HOSTNAME} {
+  import security
+
   reverse_proxy http://supabase-kong:{$KONG_HTTP_PORT}
 }
