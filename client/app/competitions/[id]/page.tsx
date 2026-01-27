@@ -25,12 +25,12 @@ async function ContestDetailsPage({ params }: Props) {
   const session = await auth.api.getSession({ headers: await headers() });
 
   const [contest] = await db.select(contestsPublicCols).from(table).where(eq(table.competitionId, id));
+  if (!contest) return <LoadingError loadingEntity="contest" />;
+
   const organizers = await db
     .select(personsPublicCols)
     .from(personsTable)
     .where(inArray(personsTable.id, contest.organizerIds));
-
-  if (!contest) return <LoadingError loadingEntity="contest" />;
 
   const formattedDate = getFormattedDate(contest.startDate, contest.endDate || null);
   // Not used for competition type contests
