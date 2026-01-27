@@ -15,6 +15,7 @@ import { auth } from "~/server/auth.ts";
 import { db } from "~/server/db/provider.ts";
 import { contestsPublicCols, contestsTable as table } from "~/server/db/schema/contests.ts";
 import { personsPublicCols, personsTable } from "~/server/db/schema/persons.ts";
+import { getUserHasAccessToContest } from "~/server/serverUtilityFunctions";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -26,6 +27,8 @@ async function ContestDetailsPage({ params }: Props) {
 
   const [contest] = await db.select(contestsPublicCols).from(table).where(eq(table.competitionId, id));
   if (!contest) return <LoadingError loadingEntity="contest" />;
+
+  const hasAccessToContest = session && (await getUserHasAccessToContest(session.user, contest));
 
   const organizers = await db
     .select(personsPublicCols)
@@ -109,7 +112,9 @@ async function ContestDetailsPage({ params }: Props) {
           <div className="px-2">
             <div className="mb-3">
               <ToastMessages />
-              <ContestControls contest={contest} isAdmin={getIsAdmin(session?.user.role)} forPage="contest-details" />
+              {hasAccessToContest && (
+                <ContestControls contest={contest} isAdmin={getIsAdmin(session.user.role)} forPage="contest-details" />
+              )}
             </div>
 
             {contest.state === "created" ? (
