@@ -6,33 +6,33 @@
 
 # $1 - (optional) --restart/-r - skip apt update and DB dump
 
-if [ "$(pwd | tail -c 5)" == "/bin" ]; then
-  echo "Please run this script from the repo's root directory"
+if [ "$(pwd | tail -c 5)" == "/bin" ] || [ $EUID != 0 ]; then
+  echo "Please run this script with sudo from the repo's root directory"
   exit 1
 fi
 
 source .env
-sudo docker pull "$DOCKER_IMAGE_NAME"
+docker pull "$DOCKER_IMAGE_NAME"
 
 if [ "$1" != "--restart" ] && [ "$1" != "-r" ]; then
   cd client &&
   pnpm run db:migrate &&
   cd .. &&
 
-  sudo docker compose -f docker-compose.cc.yml up -d
+  docker compose -f docker-compose.cc.yml up -d
 else
-  sudo apt update &&
-  sudo apt dist-upgrade &&
+  apt update &&
+  apt dist-upgrade &&
 
   # TO-DO: MAKE DUMPS WORK AGAIN (use Supabase cron)!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   # ./bin/dump-db.sh /dump
 
-  sudo docker stop cc-nextjs &&
+  docker stop cc-nextjs &&
 
   cd client &&
   pnpm run db:migrate &&
   cd .. &&
   echo && # just print a new line in the terminal
 
-  sudo docker compose -f docker-compose.cc.yml up -d
+  docker compose -f docker-compose.cc.yml up -d
 fi
