@@ -22,6 +22,11 @@ async function HomePage() {
     <div className="px-3">
       <h1 className="mb-4 text-center">Cubing Contests</h1>
 
+      <div className="alert alert-warning mb-4" role="alert">
+        The website just received a major update! Read our <Link href="/posts/the-big-update">blog post</Link> to learn
+        more.
+      </div>
+
       <div className="alert alert-light mb-4" role="alert">
         Join the Cubing Contests{" "}
         <a href={C.discordServerLink} target="_blank" rel="noopener noreferrer">

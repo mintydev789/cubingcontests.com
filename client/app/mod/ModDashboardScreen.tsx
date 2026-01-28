@@ -58,9 +58,8 @@ function ModDashboardScreen({ contests: initContests, session }: Props) {
   };
 
   return (
-    <section>
+    <>
       <div className="px-2">
-        <h2 className="mb-4 text-center">Moderator Dashboard</h2>
         <ToastMessages />
 
         <div className="alert alert-light mb-4" role="alert">
@@ -125,6 +124,11 @@ function ModDashboardScreen({ contests: initContests, session }: Props) {
 
       <ModFilters onSelectPerson={selectPerson} onResetFilters={resetFilters} disabled={isPendingContests} />
 
+      <div className="alert alert-warning mb-4" role="alert">
+        The website just received a major update! Read our <Link href="/posts/the-big-update">blog post</Link> to learn
+        more.
+      </div>
+
       {isPendingContests ? (
         <Loading />
       ) : contests.length === 0 ? (
@@ -188,7 +192,7 @@ function ModDashboardScreen({ contests: initContests, session }: Props) {
           </table>
         </div>
       )}
-    </section>
+    </>
   );
 }
 

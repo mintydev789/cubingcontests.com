@@ -16,16 +16,15 @@ import { getFormattedDate, getFormattedTime } from "~/helpers/utilityFunctions.t
 import { db } from "~/server/db/provider";
 import { getRankings } from "~/server/serverUtilityFunctions";
 
-// SEO
 export const metadata = {
   title: "Records | Cubing Contests",
   description: "Records from unofficial Rubik's Cube competitions and speedcuber meetups.",
   keywords:
     "records rankings rubik's rubiks cube contest contests competition competitions meetup meetups speedcubing speed cubing puzzle",
   icons: { icon: "/favicon.png" },
-  metadataBase: new URL("https://cubingcontests.com"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL!),
   openGraph: {
-    images: ["/banners/cubing_contests_3.jpg"],
+    images: ["/screenshots/cubing_contests_3.jpg"],
   },
 };
 
@@ -86,6 +85,11 @@ async function RecordsPage({ params, searchParams }: Props) {
       <h2 className="mb-4 text-center">Records</h2>
 
       <AffiliateLink type={eventCategory === "unofficial" ? "fto" : eventCategory === "wca" ? "wca" : "other"} />
+
+      <div className="alert alert-warning mx-2 mb-4" role="alert">
+        The website just received a major update! Read our <Link href="/posts/the-big-update">blog post</Link> to learn
+        more.
+      </div>
 
       {records.length === 0 ? (
         <p className="fs-5 mx-2">No records have been set yet</p>

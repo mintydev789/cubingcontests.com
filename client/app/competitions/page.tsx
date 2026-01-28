@@ -1,4 +1,5 @@
 import { and, eq, ne } from "drizzle-orm";
+import Link from "next/link";
 import ContestsTable from "~/app/components/ContestsTable.tsx";
 import EventButtons from "~/app/components/EventButtons.tsx";
 import { Continents, Countries } from "~/helpers/Countries.ts";
@@ -8,16 +9,15 @@ import AffiliateLink from "../components/AffiliateLink.tsx";
 import LoadingError from "../components/UI/LoadingError.tsx";
 import RegionSelect from "../rankings/[eventId]/[singleOrAvg]/RegionSelect.tsx";
 
-// SEO
 export const metadata = {
   title: "All contests | Cubing Contests",
   description: "List of unofficial Rubik's Cube competitions and speedcuber meetups.",
   keywords:
     "rubik's rubiks cube contest contests competition competitions meetup meetups speedcubing speed cubing puzzle",
   icons: { icon: "/favicon.png" },
-  metadataBase: new URL("https://cubingcontests.com"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL!),
   openGraph: {
-    images: ["/banners/cubing_contests_2.jpg"],
+    images: ["/screenshots/cubing_contests_2.jpg"],
   },
 };
 
@@ -46,6 +46,7 @@ async function ContestsPage({ searchParams }: Props) {
     },
     with: { rounds: { columns: { eventId: true } } },
     where: {
+      state: { notIn: ["created", "removed"] },
       rounds: eventId ? { eventId } : undefined,
       regionCode: regionCodes ? { in: regionCodes } : region,
     },
@@ -70,6 +71,11 @@ async function ContestsPage({ searchParams }: Props) {
       ) : (
         <>
           <div className="mb-3 px-2">
+            <div className="alert alert-warning mb-4" role="alert">
+              The website just received a major update! Read our <Link href="/posts/the-big-update">blog post</Link> to
+              learn more.
+            </div>
+
             <EventButtons key={eventId} eventId={eventId} events={events} forPage="competitions" />
             <div style={{ maxWidth: "24rem" }}>
               <RegionSelect />

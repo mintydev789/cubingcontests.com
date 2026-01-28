@@ -1,4 +1,3 @@
-import { and, eq, ne } from "drizzle-orm";
 import omitBy from "lodash/omitBy";
 import Link from "next/link";
 import AffiliateLink from "~/app/components/AffiliateLink.tsx";
@@ -43,15 +42,14 @@ const eventsWith3x3 = [
   "333_oh_bld_team_relay",
 ];
 
-// SEO
 export const metadata = {
   title: "Rankings | Cubing Contests",
   description: "Rankings for unofficial Rubik's Cube competitions and speedcuber meetups.",
   keywords:
     "rankings rubik's rubiks cube contest contests competition competitions meetup meetups speedcubing speed cubing puzzle",
   icons: { icon: "/favicon.png" },
-  metadataBase: new URL("https://cubingcontests.com"),
-  openGraph: { images: ["/banners/cubing_contests_4.jpg"] },
+  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL!),
+  openGraph: { images: ["/screenshots/cubing_contests_4.jpg"] },
 };
 
 type Props = {
@@ -76,12 +74,9 @@ async function RankingsPage({ params, searchParams }: Props) {
   const urlSearchParamsWithoutCategory = new URLSearchParams(omitBy({ show, region, topN } as any, (val) => !val));
   const urlSearchParamsWithoutTopN = new URLSearchParams(omitBy({ show, category, region } as any, (val) => !val));
 
-  const events = await db
-    .select(eventsPublicCols)
-    .from(table)
-    .where(and(ne(table.category, "removed"), eq(table.hidden, false)))
-    .orderBy(table.rank);
+  const events = await db.select(eventsPublicCols).from(table).orderBy(table.rank);
 
+  const visibleEvents = events.filter((e) => e.category !== "removed" && !e.hidden);
   const event = events.find((e) => e.eventId === eventId);
   if (!event) return <p className="fs-4 mt-5 text-center">Event not found</p>;
   const recordCategory =
@@ -123,8 +118,13 @@ async function RankingsPage({ params, searchParams }: Props) {
       <AffiliateLink type={affiliateLinkType} />
 
       <div className="mb-3 px-2">
+        <div className="alert alert-warning mb-4" role="alert">
+          The website just received a major update! Read our <Link href="/posts/the-big-update">blog post</Link> to
+          learn more.
+        </div>
+
         <h4>Event</h4>
-        <EventButtons eventId={eventId} events={events} forPage="rankings" />
+        <EventButtons eventId={eventId} events={visibleEvents} forPage="rankings" />
 
         {/* Similar code to the records page */}
         <div className="d-flex mb-4 flex-wrap gap-3">
@@ -268,6 +268,12 @@ async function RankingsPage({ params, searchParams }: Props) {
       </div>
 
       <EventTitle event={event} showDescription />
+
+      {event.category === "removed" ? (
+        <p className="ms-2 text-danger">This is a removed event</p>
+      ) : event.hidden ? (
+        <p className="ms-2 text-danger">This is a hidden event</p>
+      ) : undefined}
 
       <div className="table-responsive flex-grow-1">
         <table className="table-hover table-responsive table text-nowrap">

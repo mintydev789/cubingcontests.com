@@ -1,0 +1,66 @@
+<div className="px-3 lh-lg">
+
+## The "Big Update"
+
+by Deni Mintsaev\
+Date: 27 January 2026
+
+The time has finally come! The "Big Update" (v0.13) is finally here! 🥳
+
+🗓️ After **346 days of work** (though with many gaps in between), I have managed to rewrite our entire backend, bringing the website up to more modern standards. I have replaced our Mongo DB database with PostgreSQL and migrated all of the data over, changed the library we use for authentication, making the website more secure in the process, added Supabase for data storage, logging and system administration, and greatly optimized almost all of our pages.
+
+I don't think I have ever taken on such a huge project, and I'm very proud of the end result. I'm aware that many of you likely won't notice the kind of drastic change that you would expect from an update one year in the making, but trust me when I say that the CC code base is now in a much better state, which will facilitate many more updates to come. However, there is still a decent number of significant changes here, which you can see below.
+
+‼️ Some things to note:
+- All user passwords have been reset, due to us switching to a new, more secure authentication system. Please use the [forgot password](https://cubingcontests.com/forgot-password) feature to get a password reset link.
+- I have updated our DNS name servers to point to the new server, which may take some time to propagate through ✨ The Internet ✨ which isn't something I can control sadly 😬 This process may take up to 24 hours.
+- Due to that, you might be unable to receive the password reset email, so just try again a few hours later.
+- After such a massive update, there will undoubtedly be some bugs found. Please report them in #big-update-feedback. I will try to fix any issues that come up ASAP over the next couple of weeks.
+- Please note that any records you see may not be final, as I'm currently working on a big archival project. I want to finish importing all past results from the Extra Events database and from unofficial events held between 2003 and 2010.
+
+### Changes
+
+1. Added support for continental and national records (including proper support for team events).
+2. Added support for different record categories: X?R for competition records (both WCA and unofficial), M?R for meetup records, and ?B for video-based event records. All past records will be recalculated based on this.
+3. Added region filter for the contests page.
+4. Added filters for the records page: region, category.
+5. Improved performance on most pages (see performance gains below).
+6. New Collective Cubing event: 2x2.
+7. Fix: WCA competition imports have been fixed. There will no longer be "please wait for 24 hours" errors.
+8. Fix: There used to be a bug on the rankings and records pages, where all dates were off by one day. This has been fixed.
+9. Tweak: Improved person input search for names containing accents.
+10. Tweak: All organizers are included in contest submitted and contest finished email threads.
+11. Tweak: The rankings page now displays tied results sorted by date (earlier is better).
+12. Tweak: The rankings page now accounts for tied results that "cross over" the requested number of top rankings (e.g. when requesting top 100, if there are 5 tied results/persons starting from place 98, the rankings will display 102 results in total).
+13. Security: change password hashing algorithm to a more secure one. IMPORTANT: this means all users have to reset their passwords.
+14. Various bug fixes and tweaks.
+
+### Performance improvements
+
+⚡ Static page loading times have been reduced by 33-64% ⚡
+
+Before the "Big Update"
+
+- Contests list: 6.45s
+- Fto single persons rankings: 2.27s
+- Fto avg persons rankings: 2.58s
+- Fto single results rankings (top 10000): 20.50s
+- Fto avg results rankings: 5.69s
+- TeamBLD single persons rankings: 4.50s
+- TeamBLD avg persons rankings: 3.75s
+- TeamBLD single results rankings: 14.74s
+- TeamBLD avg results rankings: 2.99s
+
+After the "Big Update"
+
+- Contests list: 2.30s (-64%)
+- Fto single persons rankings: 1.37s (-40%)
+- Fto avg persons rankings: 1.56s (-40%)
+- Fto single results rankings (top 10000): 7.08s (-64%)
+- Fto avg results rankings: 2.84s (-50%)
+- TeamBLD single persons rankings: 1.93s (-57%)
+- TeamBLD avg persons rankings: 1.85s (-51%)
+- TeamBLD single results rankings: 5.32s (-64%)
+- TeamBLD avg results rankings: 1.99s (-33%)
+
+</div>

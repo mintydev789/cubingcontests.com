@@ -15,7 +15,13 @@ async function ModeratorDashboardPage({ searchParams }: Props) {
 
   if (!res.data) return <LoadingError loadingEntity="contests" />;
 
-  return <ModDashboardScreen contests={res.data} session={session} />;
+  return (
+    <section>
+      <h2 className="mb-4 text-center">Moderator Dashboard</h2>
+
+      <ModDashboardScreen contests={res.data} session={session} />
+    </section>
+  );
 }
 
 export default ModeratorDashboardPage;

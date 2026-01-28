@@ -10,16 +10,15 @@ import { auth } from "~/server/auth.ts";
 
 config.autoAddCss = false;
 
-// SEO
 export const metadata = {
   title: "Cubing Contests",
   description: "The best place for hosting unofficial Rubik's Cube competitions and speedcuber meetups.",
   keywords:
     "rubik's rubiks cube contest contests competition competitions meetup meetups speedcubing speed cubing puzzle",
   icons: { icon: "/favicon.png" },
-  metadataBase: new URL("https://cubingcontests.com"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL!),
   openGraph: {
-    images: ["/banners/cubing_contests_1.jpg"],
+    images: ["/screenshots/cubing_contests_1.jpg"],
   },
 };
 
