@@ -1,4 +1,4 @@
-import { toZonedTime } from "date-fns-tz";
+import { getTimezoneOffset } from "date-fns-tz";
 import z from "zod";
 import { CountryCodes } from "~/helpers/Countries.ts";
 import { C } from "~/helpers/constants.ts";
@@ -165,13 +165,13 @@ export const ContestValidator = z
     if (val.startDate > val.endDate) {
       ctx.addIssue({
         code: "custom",
-        message: "The start date must be before the end date",
+        message: `The start date (${val.startDate.toDateString()}) must be before the end date (${val.endDate.toDateString()})`,
         input: val.startDate,
       });
     }
 
     if (val.type === "meetup") {
-      const correctStartDate = getDateOnly(toZonedTime(val.startTime!, val.timezone!))!;
+      const correctStartDate = getDateOnly(new Date(val.startTime!.getTime() + getTimezoneOffset(val.timezone!)))!;
       if (val.startDate.getTime() !== correctStartDate.getTime()) {
         ctx.addIssue({
           code: "custom",

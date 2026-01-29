@@ -27,9 +27,6 @@ services:
       - shared
     ports:
       - 127.0.0.1:${NEXTJS_PORT}:3000 # the Caddyfile assumes the Next JS port used internally in the container is 3000
-    volumes:
-      # THIS IS TEMPORARY!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      - ./client/dump/:/app/dump/:ro
     environment:
       # Mostly the same as DATABASE_URL in .env.development
       DATABASE_URL: postgresql://${CC_DB_USERNAME}.${POOLER_TENANT_ID}:${CC_DB_PASSWORD}@supabase-pooler:${POOLER_PROXY_PORT_TRANSACTION}/${POSTGRES_DB}

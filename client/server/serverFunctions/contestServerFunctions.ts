@@ -185,7 +185,10 @@ export const createContestSF = actionClient
   .inputSchema(
     z.strictObject({
       newContestDto: ContestValidator,
-      rounds: z.array(RoundValidator).nonempty({ error: "Please select at least one event" }),
+      rounds: z
+        .array(RoundValidator)
+        .nonempty({ error: "Please select at least one event" })
+        .max(C.maxTotalRounds, { error: "You may not hold more than 30 rounds in total" }),
     }),
   )
   .action(
@@ -780,7 +783,7 @@ async function validateAndCleanUpContest(
   // Validation of meetups
   if (contest.type === "meetup") {
     if (rounds.length > C.maxTotalMeetupRounds)
-      throw new CcActionError("You may not hold more than 15 rounds at a meetup");
+      throw new CcActionError("You may not hold more than 15 rounds in total at a meetup");
 
     const correctTz = findTimezone(contest.latitudeMicrodegrees / 1000000, contest.longitudeMicrodegrees / 1000000)[0];
     if (contest.timezone !== correctTz)

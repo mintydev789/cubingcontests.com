@@ -4,6 +4,11 @@ This is a place for hosting unofficial Rubik's Cube competitions, unofficial
 events held at WCA competitions, speedcuber meetups, and other unofficial
 events.
 
+## WIP
+
+**A MAJOR UPDATE WAS RELEASED RECENTLY, WHICH MADE THIS README VERY OUTDATED. PLEASE RETURN 1-2 WEEKS FROM NOW ONCE THE README HAS BEEN UPDATED!**
+
+<!--
 ## Screenshots
 
 <img src="https://cubingcontests.com/screenshots/cubing_contests_1.jpg" width="500"/>
@@ -222,3 +227,4 @@ the
 Logging into DB with admin privileges locally:
 
 docker exec supabase-db psql postgresql://supabase_admin:${POSTGRES_PASSWORD}@localhost:${POSTGRES_PORT}/${POSTGRES_DB}
+-->

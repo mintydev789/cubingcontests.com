@@ -1,7 +1,7 @@
 export const C = {
   contactEmail: "cubing-contests-admin@googlegroups.com",
   sourceCodeLink: "https://github.com/mintydev789/cubingcontests.com",
-  discordServerLink: "https://discord.gg/7rRMQA8jnU",
+  discordServerLink: "https://discord.gg/7rRMQA8jnU", // this is hardcoded in .mdx
   fetchDebounceTimeout: 600, // the timeout in ms between doing repetitive fetch requests that need to be limited
   maxRounds: 4,
   minResultsForThreeMoreRounds: 100,
@@ -19,6 +19,7 @@ export const C = {
   minProceedNumber: 2,
   maxProceedPercentage: 75,
   maxTotalMeetupRounds: 15,
+  maxTotalRounds: 30,
   maxPersonMatches: 6,
   maxRankings: 100_000,
   duePerCompetitor: 0.1,

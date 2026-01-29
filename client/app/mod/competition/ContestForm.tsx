@@ -265,7 +265,7 @@ function ContestForm({
             newContestDto: parsed.data!,
             rounds: rounds.map((r) => ({ ...r, competitionId })),
           })
-        : await createContest({ newContestDto: parsed.data!, rounds });
+        : await createContest({ newContestDto: parsed.data!, rounds: rounds.map((r) => ({ ...r, competitionId })) });
 
     if (res.serverError || res.validationErrors) changeErrorMessages([getActionError(res)]);
     else router.push("/mod");
@@ -425,7 +425,11 @@ function ContestForm({
   const changeStartDate = (newDate: Date | undefined) => {
     if (type === "meetup") {
       setStartTime(newDate);
-      if (isValid(newDate)) setStartDate(getDateOnly(new Date(newDate!.getTime() + getTimezoneOffset(timezone)))!);
+      if (isValid(newDate)) {
+        const newStartDate = getDateOnly(new Date(newDate!.getTime() + getTimezoneOffset(timezone)))!;
+        setStartDate(newStartDate);
+        setEndDate(newStartDate);
+      }
     } else {
       setStartDate(newDate);
       if (isValid(newDate) && isValid(endDate) && newDate!.getTime() > endDate!.getTime()) setEndDate(newDate);
