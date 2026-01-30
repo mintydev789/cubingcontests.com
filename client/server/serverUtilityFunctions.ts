@@ -4,7 +4,7 @@ import { camelCase } from "lodash";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import z from "zod";
-import { Continents } from "~/helpers/Countries.ts";
+import { Continents, Countries } from "~/helpers/Countries.ts";
 import { C } from "~/helpers/constants.ts";
 import type { Ranking, RecordsData } from "~/helpers/types/Rankings.ts";
 import { type RecordCategory, RecordCategoryValues, type RecordType, RecordTypeValues } from "~/helpers/types.ts";
@@ -195,8 +195,16 @@ export async function getRecords(
     orderBy: { rank: "asc" },
   });
 
-  const continent = Continents.find((c) => c.code === region);
-  const recordType = !region ? "WR" : (continent?.recordTypeId ?? "NR");
+  let recordTypes: RecordType[] = ["WR"];
+  if (region) {
+    const continent = Continents.find((c) => c.code === region);
+    if (continent) {
+      recordTypes.push(continent.recordTypeId);
+    } else {
+      const country = Countries.find((c) => c.code === region)!;
+      recordTypes = ["WR", Continents.find((con) => con.code === country.superRegionCode)!.recordTypeId, "NR"];
+    }
+  }
 
   const records = await db
     .select({
@@ -220,8 +228,11 @@ export async function getRecords(
           events.map((e) => e.eventId),
         ),
         eq(resultsTable.recordCategory, recordCategory),
-        or(eq(resultsTable.regionalSingleRecord, recordType), eq(resultsTable.regionalAverageRecord, recordType)),
-        region && recordType === "NR" ? eq(resultsTable.regionCode, region) : undefined,
+        or(
+          inArray(resultsTable.regionalSingleRecord, recordTypes),
+          inArray(resultsTable.regionalAverageRecord, recordTypes),
+        ),
+        region && recordTypes.includes("NR") ? eq(resultsTable.regionCode, region) : undefined,
       ),
     )
     .orderBy(desc(resultsTable.date));
@@ -229,12 +240,11 @@ export async function getRecords(
   return {
     events: events.filter((e) => records.some((r) => r.eventId === e.eventId)),
     records: records.map((r) => {
-      const type =
-        r.result.regionalSingleRecord === recordType
-          ? r.result.regionalAverageRecord === recordType
-            ? "single-and-avg"
-            : "single"
-          : "average";
+      const type = recordTypes.includes(r.result.regionalSingleRecord as any)
+        ? recordTypes.includes(r.result.regionalAverageRecord as any)
+          ? "single-and-avg"
+          : "single"
+        : "average";
 
       return {
         rankingId: `${r.result.id}_${type}`,
