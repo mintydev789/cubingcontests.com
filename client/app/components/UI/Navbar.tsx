@@ -8,29 +8,23 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { authClient } from "~/helpers/authClient.ts";
 
-type Props = {
-  initSession: typeof authClient.$Infer.Session | null;
-};
-
-function NavbarItems({ initSession }: Props) {
+function NavbarItems() {
   const pathname = usePathname();
   const router = useRouter();
-  const { data: session, isPending } = authClient.useSession();
+  const { data: session } = authClient.useSession();
 
   const [expanded, setExpanded] = useState(false);
   const [resultsExpanded, setResultsExpanded] = useState(false);
   const [userExpanded, setUserExpanded] = useState(false);
   const [canAccessModDashboard, setCanAccessModDashboard] = useState(false);
 
-  const user = isPending ? initSession?.user : session?.user;
-
   useEffect(() => {
-    if (user) {
+    if (session?.user) {
       authClient.admin.hasPermission({ permissions: { modDashboard: ["view"] } }).then(({ data }) => {
         if (data) setCanAccessModDashboard(data.success);
       });
     }
-  }, [user]);
+  }, [session]);
 
   const logOut = async () => {
     collapseAll();
@@ -136,7 +130,7 @@ function NavbarItems({ initSession }: Props) {
                 About
               </Link>
             </li>
-            {!user ? (
+            {!session ? (
               <li className="nav-item">
                 <Link className="nav-link" href="/login" prefetch={false} onClick={collapseAll}>
                   Log In
@@ -149,7 +143,7 @@ function NavbarItems({ initSession }: Props) {
                 onMouseLeave={() => toggleDropdown("user", false)}
               >
                 <button type="button" onClick={() => toggleDropdown("user")} className="nav-link dropdown-toggle">
-                  {user.username}
+                  {session.user.username}
                 </button>
                 <ul className={`dropdown-menu end-0 px-3 px-lg-2 py-0 ${userExpanded ? "show" : ""}`}>
                   {canAccessModDashboard && (

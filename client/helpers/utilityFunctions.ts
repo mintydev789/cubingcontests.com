@@ -306,7 +306,7 @@ export function getFormattedTime(
     showDecimals = true,
     alwaysShowMinutes = false,
   }: {
-    event?: EventResponse;
+    event?: Pick<EventResponse, "category" | "format">;
     noDelimiterChars?: boolean;
     showMultiPoints?: boolean;
     showDecimals?: boolean; // if the time is >= 1 hour, they won't be shown regardless of this value
@@ -474,7 +474,7 @@ export function getDefaultAverageAttempts(eventDefaultRoundFormat: RoundFormat) 
   return roundFormat.attempts === 5 ? 5 : 3;
 }
 
-export const getAlwaysShowDecimals = (event: EventResponse): boolean =>
+export const getAlwaysShowDecimals = (event: Pick<EventResponse, "category" | "format">): boolean =>
   event.category === "extreme-bld" && event.format !== "multi";
 
 export function getIsCompType(contestType: ContestType | undefined): boolean {

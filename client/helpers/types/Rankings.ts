@@ -17,10 +17,15 @@ export type Ranking = {
   discussionLink: string | null; // only set for video-based results
 };
 
-export type RecordRanking = Ranking & { type: "single" | "average" };
+export type RecordRanking = Omit<Ranking, "ranking" | "memo"> & {
+  type: "single" | "average" | "single-and-avg";
+};
 
-export type EventRecords = {
-  event: EventResponse;
-  // These include all tied record results, first the singles and then the averages
-  records: RecordRanking[];
+export type RecordsData = {
+  events: Pick<EventResponse, "eventId" | "name" | "category" | "format" | "removedWca" | "description">[];
+  records: (Omit<RecordRanking, "result"> & {
+    eventId: string;
+    best: number;
+    average: number;
+  })[];
 };

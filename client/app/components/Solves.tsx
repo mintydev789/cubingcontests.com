@@ -3,7 +3,7 @@ import type { EventResponse } from "~/server/db/schema/events.ts";
 import type { Attempt } from "~/server/db/schema/results.ts";
 
 type Props = {
-  event: EventResponse;
+  event: Pick<EventResponse, "category" | "format">;
   attempts: Attempt[];
   showMultiPoints?: boolean;
 };

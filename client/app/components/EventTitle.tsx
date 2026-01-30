@@ -4,7 +4,7 @@ import type { EventResponse } from "~/server/db/schema/events.ts";
 import EventIcon from "./EventIcon.tsx";
 
 type Props = {
-  event: EventResponse;
+  event: Pick<EventResponse, "eventId" | "name" | "category" | "removedWca" | "description">;
   showIcon?: boolean;
   showDescription?: boolean;
   linkToRankings?: boolean;

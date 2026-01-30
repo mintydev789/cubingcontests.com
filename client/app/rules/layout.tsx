@@ -3,6 +3,8 @@ import { db } from "~/server/db/provider.ts";
 import { eventsTable as table } from "~/server/db/schema/events.ts";
 import EventInformation from "./EventInformation.tsx";
 
+export const dynamic = "force-dynamic";
+
 type Props = {
   children: React.ReactNode;
 };

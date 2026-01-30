@@ -1,18 +1,18 @@
 import "server-only";
-import { and, eq, gt, lt, lte, ne, or, sql } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, lt, lte, ne, or, sql } from "drizzle-orm";
 import { camelCase } from "lodash";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import z from "zod";
-import { Continents, CountryCodes } from "~/helpers/Countries.ts";
+import { Continents } from "~/helpers/Countries.ts";
 import { C } from "~/helpers/constants.ts";
-import type { Ranking } from "~/helpers/types/Rankings.ts";
+import type { Ranking, RecordsData } from "~/helpers/types/Rankings.ts";
 import { type RecordCategory, RecordCategoryValues, type RecordType, RecordTypeValues } from "~/helpers/types.ts";
 import { getIsAdmin } from "~/helpers/utilityFunctions.ts";
 import { type DbTransactionType, db } from "~/server/db/provider.ts";
 import { type ContestResponse, contestsTable } from "~/server/db/schema/contests.ts";
 import { type EventResponse, eventsPublicCols, eventsTable, type SelectEvent } from "~/server/db/schema/events.ts";
-import { personsTable, type SelectPerson } from "~/server/db/schema/persons.ts";
+import { type PersonResponse, personsTable, type SelectPerson } from "~/server/db/schema/persons.ts";
 import { recordConfigsPublicCols, recordConfigsTable } from "~/server/db/schema/record-configs.ts";
 import { resultsTable, type SelectResult } from "~/server/db/schema/results.ts";
 import { type LogCode, logger } from "~/server/logger.ts";
@@ -167,6 +167,92 @@ export async function getRecordResult(
   return recordResult;
 }
 
+const personsArrayJsonSql = sql`
+  JSON_AGG(
+    JSON_BUILD_OBJECT(
+      'id', ${personsTable.id},
+      'name', ${personsTable.name},
+      'localizedName', ${personsTable.localizedName},
+      'regionCode', ${personsTable.regionCode},
+      'wcaId', ${personsTable.wcaId}
+    )
+  )`;
+
+export async function getRecords(
+  eventCategory: string,
+  recordCategory: RecordCategory,
+  region?: string,
+): Promise<RecordsData> {
+  z.strictObject({
+    eventCategory: z.string().nonempty(),
+    recordCategory: z.enum(RecordCategoryValues),
+    region: z.string().optional(),
+  }).parse({ eventCategory, recordCategory, region });
+
+  const events = await db.query.events.findMany({
+    columns: { eventId: true, name: true, category: true, format: true, removedWca: true, description: true },
+    where: { hidden: false, category: eventCategory },
+    orderBy: { rank: "asc" },
+  });
+
+  const continent = Continents.find((c) => c.code === region);
+  const recordType = !region ? "WR" : (continent?.recordTypeId ?? "NR");
+
+  const records = await db
+    .select({
+      eventId: eventsTable.eventId,
+      result: resultsTable,
+      persons: sql`(SELECT ${personsArrayJsonSql} FROM ${personsTable} WHERE ${personsTable.id} = ANY(${resultsTable.personIds}))`,
+      contest: {
+        competitionId: contestsTable.competitionId,
+        shortName: contestsTable.shortName,
+        regionCode: contestsTable.regionCode,
+        type: contestsTable.type,
+      },
+    })
+    .from(eventsTable)
+    .innerJoin(resultsTable, eq(eventsTable.eventId, resultsTable.eventId))
+    .leftJoin(contestsTable, eq(resultsTable.competitionId, contestsTable.competitionId))
+    .where(
+      and(
+        inArray(
+          eventsTable.eventId,
+          events.map((e) => e.eventId),
+        ),
+        eq(resultsTable.recordCategory, recordCategory),
+        or(eq(resultsTable.regionalSingleRecord, recordType), eq(resultsTable.regionalAverageRecord, recordType)),
+        region && recordType === "NR" ? eq(resultsTable.regionCode, region) : undefined,
+      ),
+    )
+    .orderBy(desc(resultsTable.date));
+
+  return {
+    events: events.filter((e) => records.some((r) => r.eventId === e.eventId)),
+    records: records.map((r) => {
+      const type =
+        r.result.regionalSingleRecord === recordType
+          ? r.result.regionalAverageRecord === recordType
+            ? "single-and-avg"
+            : "single"
+          : "average";
+
+      return {
+        rankingId: `${r.result.id}_${type}`,
+        type,
+        eventId: r.eventId,
+        date: r.result.date,
+        persons: r.persons as Pick<PersonResponse, "id" | "name" | "localizedName" | "regionCode" | "wcaId">[],
+        best: r.result.best,
+        average: r.result.average,
+        attempts: r.result.attempts,
+        contest: r.contest,
+        videoLink: r.result.videoLink,
+        discussionLink: r.result.discussionLink,
+      };
+    }),
+  };
+}
+
 export async function getRankings(
   event: EventResponse,
   bestOrAverage: "best" | "average",
@@ -185,7 +271,7 @@ export async function getRankings(
     bestOrAverage: z.enum(["best", "average"]),
     recordCategory: z.enum([...RecordCategoryValues, "all"]),
     show: z.enum(["persons", "results"]).optional(),
-    region: z.enum([...CountryCodes, ...Continents.map((c) => c.code)]).optional(),
+    region: z.string().optional(),
     topN: z.int().min(1).max(C.maxRankings),
   }).parse({ bestOrAverage, recordCategory, show, region, topN });
 
@@ -250,22 +336,10 @@ export async function getRankings(
             ${regionCondition}
           ORDER BY person_id, ${resultsTable[bestOrAverage]}, ${resultsTable.date}
         ), rankings AS (
-          SELECT personal_records.*,
+          SELECT
+            personal_records.*,
             RANK() OVER (ORDER BY personal_records.result ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS ranking,
-            (
-              SELECT
-                JSON_AGG(
-                  JSON_BUILD_OBJECT(
-                    'id', ${personsTable.id},
-                    'name', ${personsTable.name},
-                    'localizedName', ${personsTable.localizedName},
-                    'regionCode', ${personsTable.regionCode},
-                    'wcaId', ${personsTable.wcaId}
-                  )
-                )
-              FROM ${personsTable}
-              WHERE ${personsTable.id} = ANY(personal_records.persons)
-            ) AS persons
+            (SELECT ${personsArrayJsonSql} FROM ${personsTable} WHERE ${personsTable.id} = ANY(personal_records.persons)) AS persons
           FROM personal_records
           ORDER BY ranking, personal_records.date
         )
@@ -294,20 +368,7 @@ export async function getRankings(
             CONCAT(${resultsTable.id}, '_', attempts_data.attempt_number) AS ranking_id,
             RANK() OVER (ORDER BY CAST(attempts_data.attempt->>'result' AS BIGINT) ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS ranking,
             ${resultsTable.date},
-            (
-              SELECT
-                JSON_AGG(
-                  JSON_BUILD_OBJECT(
-                    'id', ${personsTable.id},
-                    'name', ${personsTable.name},
-                    'localizedName', ${personsTable.localizedName},
-                    'regionCode', ${personsTable.regionCode},
-                    'wcaId', ${personsTable.wcaId}
-                  )
-                )
-              FROM ${personsTable}
-              WHERE ${personsTable.id} = ANY(${resultsTable.personIds})
-            ) AS persons,
+            (SELECT ${personsArrayJsonSql} FROM ${personsTable} WHERE ${personsTable.id} = ANY(${resultsTable.personIds})) AS persons,
             attempts_data.attempt->>'result' AS result,
             CAST(attempts_data.attempt->>'memo' AS INTEGER) AS memo,
             ${resultsTable.attempts},
@@ -346,20 +407,7 @@ export async function getRankings(
             CAST(${resultsTable.id} AS TEXT) AS ranking_id,
             RANK() OVER (ORDER BY ${resultsTable.average} ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS ranking,
             ${resultsTable.date},
-            (
-              SELECT
-                JSON_AGG(
-                  JSON_BUILD_OBJECT(
-                    'id', ${personsTable.id},
-                    'name', ${personsTable.name},
-                    'localizedName', ${personsTable.localizedName},
-                    'regionCode', ${personsTable.regionCode},
-                    'wcaId', ${personsTable.wcaId}
-                  )
-                )
-              FROM ${personsTable}
-              WHERE ${personsTable.id} = ANY(${resultsTable.personIds})
-            ) AS persons,
+            (SELECT ${personsArrayJsonSql} FROM ${personsTable} WHERE ${personsTable.id} = ANY(${resultsTable.personIds})) AS persons,
             ${resultsTable.average} AS result,
             ${resultsTable.attempts},
             CASE WHEN ${resultsTable.competitionId} IS NOT NULL THEN

@@ -4,15 +4,13 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import Footer from "~/app/components/UI/Footer.tsx";
 import Navbar from "~/app/components/UI/Navbar.tsx";
-import type { authClient } from "~/helpers/authClient.ts";
 import { MainContext, type Theme } from "~/helpers/contexts.ts";
 
 type Props = {
   children: React.ReactNode;
-  initSession: typeof authClient.$Infer.Session | null;
 };
 
-function MainLayout({ children, initSession }: Props) {
+function MainLayout({ children }: Props) {
   const pathname = usePathname();
 
   const [theme, setTheme] = useState<Theme>("dark");
@@ -73,7 +71,7 @@ function MainLayout({ children, initSession }: Props) {
           resetMessages,
         }}
       >
-        <Navbar initSession={initSession} />
+        <Navbar />
         <main className="container-md d-flex flex-column flex-grow-1 px-0 pt-4 pb-2">{children}</main>
         <Footer />
       </MainContext.Provider>

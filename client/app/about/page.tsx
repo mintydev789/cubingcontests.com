@@ -1,6 +1,8 @@
 import PartialHomePageDetails from "~/app/components/PartialHomePageDetails.tsx";
 import { db } from "~/server/db/provider";
 
+export const dynamic = "force-dynamic";
+
 async function AboutPage() {
   const adminUsers = await db.query.users.findMany({ columns: { personId: true }, where: { role: "admin" } });
   const adminPersons = await db.query.persons.findMany({

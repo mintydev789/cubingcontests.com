@@ -4,7 +4,7 @@ import { shortenEventName } from "~/helpers/utilityFunctions.ts";
 import type { EventResponse } from "~/server/db/schema/events.ts";
 
 type Props = {
-  event: EventResponse;
+  event: Pick<EventResponse, "eventId" | "name" | "category" | "removedWca">;
   onClick?: () => void;
   isActive?: boolean;
 };

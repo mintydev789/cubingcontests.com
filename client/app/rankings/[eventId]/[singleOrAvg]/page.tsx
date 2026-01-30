@@ -1,10 +1,12 @@
 import omitBy from "lodash/omitBy";
 import Link from "next/link";
+import { Suspense } from "react";
 import AffiliateLink from "~/app/components/AffiliateLink.tsx";
 import EventButtons from "~/app/components/EventButtons.tsx";
 import EventTitle from "~/app/components/EventTitle.tsx";
-import RankingRow from "~/app/components/RankingRow";
+import Loading from "~/app/components/UI/Loading";
 import Tooltip from "~/app/components/UI/Tooltip";
+import RankingsTable from "~/app/rankings/[eventId]/[singleOrAvg]/RankingsTable";
 import RegionSelect from "~/app/rankings/[eventId]/[singleOrAvg]/RegionSelect.tsx";
 import type { RecordCategory } from "~/helpers/types";
 import { db } from "~/server/db/provider";
@@ -85,7 +87,7 @@ async function RankingsPage({ params, searchParams }: Props) {
       ? "video-based-results"
       : "competitions");
 
-  const rankings = await getRankings(event, singleOrAvg === "single" ? "best" : "average", recordCategory, {
+  const rankingsPromise = getRankings(event, singleOrAvg === "single" ? "best" : "average", recordCategory, {
     show,
     region,
     topN: topN ? parseInt(topN, 10) : undefined,
@@ -104,12 +106,6 @@ async function RankingsPage({ params, searchParams }: Props) {
             : eventId === "kilominx"
               ? "kilominx"
               : "other";
-
-  const hasComp = rankings.some((r) => r.contest);
-  const hasLink = rankings.some((r) => r.videoLink || r.discussionLink);
-  const showAllTeammates = event && event.participants > 1 && show === "results";
-  const showTeamColumn = event && event.participants > 1 && !showAllTeammates;
-  const showDetailsColumn = singleOrAvg === "average" || rankings.some((e) => e.memo);
 
   return (
     <div>
@@ -278,44 +274,9 @@ async function RankingsPage({ params, searchParams }: Props) {
         <p className="ms-2 text-danger">This is a hidden event</p>
       ) : undefined}
 
-      <div className="table-responsive flex-grow-1">
-        <table className="table-hover table-responsive table text-nowrap">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>{!showAllTeammates ? "Name" : "Team"}</th>
-              <th>Result</th>
-              {!showAllTeammates && <th>Representing</th>}
-              <th>Date</th>
-              <th>
-                {hasComp ? "Contest" : ""}
-                {hasComp && hasLink ? " / " : ""}
-                {hasLink ? "Links" : ""}
-              </th>
-              {showTeamColumn && <th>Team</th>}
-              {showDetailsColumn && <th>{singleOrAvg === "average" ? "Solves" : "Memorization time"}</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {rankings.length === 0 ? (
-              <p className="fs-5 mx-2 mt-4">No rankings found matching the requested parameters</p>
-            ) : (
-              rankings.map((ranking, i) => (
-                <RankingRow
-                  key={ranking.rankingId}
-                  type={singleOrAvg === "single" ? "single-ranking" : "average-ranking"}
-                  ranking={ranking}
-                  isTiedRanking={ranking.ranking !== i + 1}
-                  event={event}
-                  showAllTeammates={showAllTeammates}
-                  showTeamColumn={showTeamColumn}
-                  showDetailsColumn={showDetailsColumn}
-                />
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      <Suspense fallback={<Loading />}>
+        <RankingsTable rankingsPromise={rankingsPromise} event={event} singleOrAvg={singleOrAvg} show={show} />
+      </Suspense>
     </div>
   );
 }

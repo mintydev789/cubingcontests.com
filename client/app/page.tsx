@@ -11,6 +11,8 @@ import {
 } from "../server/db/schema/collective-solutions.ts";
 import PartialHomePageDetails from "./components/PartialHomePageDetails.tsx";
 
+export const dynamic = "force-dynamic";
+
 async function HomePage() {
   const [collectiveSolution] = await db
     .select(collectiveSolutionsPublicCols)

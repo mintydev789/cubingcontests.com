@@ -5,8 +5,6 @@ import MainLayout from "~/app/components/UI/MainLayout.tsx";
 import "@fortawesome/fontawesome-svg-core/styles.css";
 // Prevent FA from adding its CSS since we did it manually above
 import { config } from "@fortawesome/fontawesome-svg-core";
-import { headers } from "next/headers";
-import { auth } from "~/server/auth.ts";
 
 config.autoAddCss = false;
 
@@ -26,12 +24,10 @@ type Props = {
   children: React.ReactNode;
 };
 
-export default async function RootLayout({ children }: Props) {
-  const session = await auth.api.getSession({ headers: await headers() });
-
+export default function RootLayout({ children }: Props) {
   return (
     <html lang="en">
-      <MainLayout initSession={session}>{children}</MainLayout>
+      <MainLayout>{children}</MainLayout>
     </html>
   );
 }

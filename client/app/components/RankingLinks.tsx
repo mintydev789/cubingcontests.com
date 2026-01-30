@@ -1,8 +1,8 @@
 import { C } from "~/helpers/constants.ts";
-import type { Ranking } from "~/helpers/types/Rankings";
+import type { Ranking, RecordRanking } from "~/helpers/types/Rankings";
 
 type Props = {
-  ranking: Ranking;
+  ranking: Ranking | RecordRanking;
 };
 
 function RankingLinks({ ranking }: Props) {

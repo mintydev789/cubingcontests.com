@@ -9,7 +9,7 @@ import ContestName from "~/app/components/ContestName.tsx";
 import Country from "~/app/components/Country.tsx";
 import RankingLinks from "~/app/components/RankingLinks.tsx";
 import Solves from "~/app/components/Solves.tsx";
-import type { Ranking } from "~/helpers/types/Rankings";
+import type { Ranking, RecordRanking } from "~/helpers/types/Rankings";
 import { getFormattedDate, getFormattedTime } from "~/helpers/utilityFunctions.ts";
 import type { EventResponse } from "~/server/db/schema/events.ts";
 
@@ -17,7 +17,7 @@ type RankingProps = {
   type: "single-ranking" | "average-ranking";
   ranking: Ranking;
   isTiedRanking: boolean;
-  event: EventResponse;
+  event: Pick<EventResponse, "name" | "category" | "format">;
   showAllTeammates: boolean;
   showTeamColumn: boolean;
   showDetailsColumn: boolean;
@@ -26,9 +26,9 @@ type RankingProps = {
 
 type RecordProps = {
   type: "single-record" | "average-record";
-  ranking: Ranking;
+  ranking: RecordRanking;
   isTiedRanking?: boolean;
-  event: EventResponse;
+  event: Pick<EventResponse, "name" | "category" | "format">;
   showAllTeammates?: never;
   showTeamColumn?: never;
   showDetailsColumn?: never;
@@ -47,9 +47,9 @@ function RankingRow({
 }: RankingProps | RecordProps) {
   const [teamExpanded, setTeamExpanded] = useState(false);
 
-  const isRecordRow = ["single-record", "average-record"].includes(type);
+  const isRecordRow = type === "single-record" || type === "average-record";
   const firstColumnValue = !isRecordRow
-    ? ranking.ranking
+    ? (ranking as Ranking).ranking
     : type === "single-record"
       ? "Single"
       : ranking.attempts.length === 3
@@ -112,7 +112,7 @@ function RankingRow({
           {!showOnlyPersonWithId &&
             (["average-ranking", "average-record"].includes(type) ? (
               <Solves event={event} attempts={ranking.attempts} showMultiPoints={!isRecordRow} />
-            ) : ranking.memo ? (
+            ) : "memo" in ranking && ranking.memo ? (
               getFormattedTime(ranking.memo, { showDecimals: false, alwaysShowMinutes: true })
             ) : (
               ""
