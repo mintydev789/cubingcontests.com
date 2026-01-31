@@ -15,3 +15,6 @@ ALTER SCHEMA :"db_schema" OWNER TO :"db_username";
 
 -- TO-DO: REMOVE THIS PERMISSION ONCE THIS PR IS MERGED!!!!! https://github.com/drizzle-team/drizzle-orm/pull/4025
 GRANT CREATE ON DATABASE :"db_name" TO :"db_username";
+
+-- Give storage user the permission to create its schema
+GRANT CREATE ON DATABASE :"db_name" TO supabase_storage_admin;

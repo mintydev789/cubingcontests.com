@@ -550,7 +550,7 @@ export const updateContestSF = actionClient
       if (!getUserHasAccessToContest(user, contest))
         throw new CcActionError("You do not have access rights for this contest");
       if (!["created", "approved", "ongoing"].includes(contest.state))
-        throw new CcActionError("Contest cannot be edited");
+        throw new CcActionError("Finished contests cannot be edited");
 
       await validateAndCleanUpContest(newContestDto, rounds, user);
 

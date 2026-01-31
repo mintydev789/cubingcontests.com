@@ -1,4 +1,7 @@
 {
+  "deno.enable": true,
+  // This just determines which paths should have Deno LSP enabled
+  "deno.enablePaths": ["./volumes/functions"],
   "biome.configurationPath": "./client/biome.jsonc",
   "biome.requireConfiguration": true,
   "biome.lsp.bin": "./client/node_modules/@biomejs/biome/bin/biome",
