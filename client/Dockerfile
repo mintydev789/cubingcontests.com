@@ -52,9 +52,6 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY ./server/loggerUtils.js ./server/loggerUtils.js
 COPY ./server/email/templates ./server/email/templates
 
-# THIS IS TEMPORARY!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-RUN mkdir new_records && chown nextjs:nodejs new_records
-
 USER nextjs
 
 EXPOSE 3000

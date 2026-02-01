@@ -1,10 +1,10 @@
 import { eq } from "drizzle-orm";
 import { describe, expect, it, vi } from "vitest";
-import { C } from "~/helpers/constants";
-import { db } from "~/server/db/provider";
+import { C } from "~/helpers/constants.ts";
+import { db } from "~/server/db/provider.ts";
 import { usersTable } from "~/server/db/schema/auth-schema.ts";
-import type { Role } from "~/server/permissions";
-import { updateUserSF } from "~/server/serverFunctions/serverFunctions";
+import type { Role } from "~/server/permissions.ts";
+import { updateUserSF } from "~/server/serverFunctions/serverFunctions.ts";
 
 const { revokeUserSessionsSpy, sendEmailSpy, sendRoleChangedEmailSpy } = vi.hoisted(() => ({
   revokeUserSessionsSpy: vi.fn(),

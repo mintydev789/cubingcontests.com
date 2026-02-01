@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm";
 import { bigint, boolean, check, integer, jsonb, text, timestamp } from "drizzle-orm/pg-core";
 import { getColumns } from "drizzle-orm/utils";
 import { recordCategoryEnum, recordTypeEnum } from "~/server/db/schema/record-configs.ts";
-import { ccSchema } from "~/server/db/schema/schema.ts";
+import { rrSchema } from "~/server/db/schema/schema.ts";
 import { tableTimestamps } from "../dbUtils.ts";
 import { usersTable } from "./auth-schema.ts";
 import type { SelectContest } from "./contests.ts";
@@ -25,7 +25,7 @@ export type Attempt = {
   memo?: number;
 };
 
-export const resultsTable = ccSchema.table(
+export const resultsTable = rrSchema.table(
   "results",
   {
     id: integer().primaryKey().generatedAlwaysAsIdentity(),

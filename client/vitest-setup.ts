@@ -17,7 +17,7 @@ import { personsTable } from "~/server/db/schema/persons.ts";
 import { recordConfigsTable } from "~/server/db/schema/record-configs.ts";
 import { resultsTable } from "~/server/db/schema/results.ts";
 import { roundsTable } from "~/server/db/schema/rounds.ts";
-import { ccSchema } from "~/server/db/schema/schema.ts";
+import { rrSchema } from "~/server/db/schema/schema.ts";
 
 vi.mock("server-only", () => ({}));
 
@@ -33,17 +33,17 @@ beforeAll(async () => {
 beforeEach(async () => {
   // Deletion has to be in reverse order due to relations between tables
   await db.delete(recordConfigsTable);
-  await db.execute(sql.raw(`ALTER SEQUENCE ${ccSchema.schemaName}.record_configs_id_seq RESTART WITH 1;`));
+  await db.execute(sql.raw(`ALTER SEQUENCE ${rrSchema.schemaName}.record_configs_id_seq RESTART WITH 1;`));
   await db.delete(resultsTable);
-  await db.execute(sql.raw(`ALTER SEQUENCE ${ccSchema.schemaName}.results_id_seq RESTART WITH 1;`));
+  await db.execute(sql.raw(`ALTER SEQUENCE ${rrSchema.schemaName}.results_id_seq RESTART WITH 1;`));
   await db.delete(roundsTable);
-  await db.execute(sql.raw(`ALTER SEQUENCE ${ccSchema.schemaName}.rounds_id_seq RESTART WITH 1;`));
+  await db.execute(sql.raw(`ALTER SEQUENCE ${rrSchema.schemaName}.rounds_id_seq RESTART WITH 1;`));
   await db.delete(contestsTable);
-  await db.execute(sql.raw(`ALTER SEQUENCE ${ccSchema.schemaName}.contests_id_seq RESTART WITH 1;`));
+  await db.execute(sql.raw(`ALTER SEQUENCE ${rrSchema.schemaName}.contests_id_seq RESTART WITH 1;`));
   await db.delete(eventsTable);
-  await db.execute(sql.raw(`ALTER SEQUENCE ${ccSchema.schemaName}.events_id_seq RESTART WITH 1;`));
+  await db.execute(sql.raw(`ALTER SEQUENCE ${rrSchema.schemaName}.events_id_seq RESTART WITH 1;`));
   await db.delete(personsTable);
-  await db.execute(sql.raw(`ALTER SEQUENCE ${ccSchema.schemaName}.persons_id_seq RESTART WITH 1;`));
+  await db.execute(sql.raw(`ALTER SEQUENCE ${rrSchema.schemaName}.persons_id_seq RESTART WITH 1;`));
   await db.delete(accountsTable);
   await db.delete(sessionsTable);
   await db.delete(usersTable);

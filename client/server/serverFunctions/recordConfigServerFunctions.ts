@@ -22,7 +22,7 @@ export const createRecordConfigSF = actionClient
   .action<RecordConfigResponse>(async ({ parsedInput: { newRecordConfigDto } }) => {
     const { category, recordTypeId, label } = newRecordConfigDto;
     logMessage(
-      "CC0027",
+      "RR0027",
       `Creating record config with category ${category}, record type ID ${recordTypeId} and label ${label}`,
     );
 
@@ -41,7 +41,7 @@ export const updateRecordConfigSF = actionClient
   .action<RecordConfigResponse>(async ({ parsedInput: { id, newRecordConfigDto } }) => {
     const { category, recordTypeId, label } = newRecordConfigDto;
     logMessage(
-      "CC0028",
+      "RR0028",
       `Updating record config with category ${category}, record type ID ${recordTypeId} and label ${label}`,
     );
 

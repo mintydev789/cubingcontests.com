@@ -12,11 +12,11 @@ if (!process.env.LOGFLARE_PUBLIC_ACCESS_TOKEN)
   console.error("LOGFLARE_PUBLIC_ACCESS_TOKEN environment variable not set!");
 
 /**
- * Use this query in Supabase Logs to view Cubing Contests logs:
+ * Use this query in Supabase Logs to view the logs:
  *
- * select id, timestamp, event_message, metadata from function_edge_logs where metadata->>'cc_code' is not null order by timestamp desc limit 100;
+ * select id, timestamp, event_message, metadata from function_edge_logs where metadata->>'rr_code' is not null order by timestamp desc limit 100;
  *
- * That query can also be used to filter by a specific CC log code.
+ * That query can also be used to filter by a specific RR log code.
  */
 
 const transport = pino.transport({
@@ -41,48 +41,48 @@ const transport = pino.transport({
 export const logger = pino(transport);
 
 export type LogCode =
-  | "CC0001" // page visit
+  | "RR0001" // page visit
   // Events
-  | "CC0002" // create event
-  | "CC0003" // update event
-  | "CC0004" // affiliate link click
+  | "RR0002" // create event
+  | "RR0003" // update event
+  | "RR0004" // affiliate link click
   // Contests
-  | "CC0005" // create contest
-  | "CC0006" // approve contest
-  | "CC0007" // finish contest
-  | "CC0008" // un-finish contest
-  | "CC0009" // publish contest
-  | "CC0010" // update contest
-  | "CC0011" // delete contest
-  | "CC0012" // open round
+  | "RR0005" // create contest
+  | "RR0006" // approve contest
+  | "RR0007" // finish contest
+  | "RR0008" // un-finish contest
+  | "RR0009" // publish contest
+  | "RR0010" // update contest
+  | "RR0011" // delete contest
+  | "RR0012" // open round
   // Results
-  | "CC0013" // create contest result
-  | "CC0014" // update contest result
-  | "CC0015" // delete contest result
-  | "CC0016" // create video-based result
-  | "CC0017" // update video-based result
-  | "CC0018" // delete video-based result
+  | "RR0013" // create contest result
+  | "RR0014" // update contest result
+  | "RR0015" // delete contest result
+  | "RR0016" // create video-based result
+  | "RR0017" // update video-based result
+  | "RR0018" // delete video-based result
   // Persons
-  | "CC0019" // create person
-  | "CC0020" // update person
-  | "CC0021" // delete person
-  | "CC0022" // approve person
-  | "CC0023" // approve persons
+  | "RR0019" // create person
+  | "RR0020" // update person
+  | "RR0021" // delete person
+  | "RR0022" // approve person
+  | "RR0023" // approve persons
   // Records
-  | "CC0024" // set result record
-  | "CC0025" // set future result record
-  | "CC0026" // cancel future result record
-  | "CC0027" // create record config
-  | "CC0028" // update record config
+  | "RR0024" // set result record
+  | "RR0025" // set future result record
+  | "RR0026" // cancel future result record
+  | "RR0027" // create record config
+  | "RR0028" // update record config
   // Collective Cubing
-  | "CC0029" // start new solution
+  | "RR0029" // start new solution
   // Users
-  | "CC0030" // send verification email
-  | "CC0031" // send reset password email
-  | "CC0032" // send password changed email
-  | "CC0033" // update user
-  | "CC0034" // delete user
+  | "RR0030" // send verification email
+  | "RR0031" // send reset password email
+  | "RR0032" // send password changed email
+  | "RR0033" // update user
+  | "RR0034" // delete user
 
   // Error codes
-  | "CC5000" // error
-  | "CC5001"; // send email error
+  | "RR5000" // error
+  | "RR5001"; // send email error

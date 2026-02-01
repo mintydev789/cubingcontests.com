@@ -2,12 +2,12 @@ import "server-only";
 import { getColumns } from "drizzle-orm";
 import { integer, serial, text, varchar } from "drizzle-orm/pg-core";
 import { usersTable } from "~/server/db/schema/auth-schema.ts";
-import { ccSchema } from "~/server/db/schema/schema.ts";
+import { rrSchema } from "~/server/db/schema/schema.ts";
 import { tableTimestamps } from "../dbUtils.ts";
 
-export const collectiveSolutionStateEnum = ccSchema.enum("state", ["ongoing", "solved", "archived"]);
+export const collectiveSolutionStateEnum = rrSchema.enum("state", ["ongoing", "solved", "archived"]);
 
-export const collectiveSolutionsTable = ccSchema.table("collective_solutions", {
+export const collectiveSolutionsTable = rrSchema.table("collective_solutions", {
   id: integer().primaryKey().generatedAlwaysAsIdentity(),
   eventId: varchar({ length: 32 }).notNull(),
   attemptNumber: serial().notNull().unique(),

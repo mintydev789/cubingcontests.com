@@ -16,22 +16,22 @@ import { type PersonResponse, personsTable, type SelectPerson } from "~/server/d
 import { recordConfigsPublicCols, recordConfigsTable } from "~/server/db/schema/record-configs.ts";
 import { resultsTable, type SelectResult } from "~/server/db/schema/results.ts";
 import { type LogCode, logger } from "~/server/logger.ts";
-import { CcActionError } from "~/server/safeAction.ts";
+import { RrActionError } from "~/server/safeAction.ts";
 import { getDateOnly, getDefaultAverageAttempts, getNameAndLocalizedName } from "../helpers/utilityFunctions.ts";
 import { auth } from "./auth.ts";
-import type { CcPermissions } from "./permissions.ts";
+import type { RrPermissions } from "./permissions.ts";
 
 export function logMessage(code: LogCode, message: string, { metadata }: { metadata?: object } = {}) {
   const messageWithCode = `[${code}] ${message}`;
 
   // Log to terminal/Docker container (except page visit logs)
-  if (code !== "CC0001") console.log(messageWithCode);
+  if (code !== "RR0001") console.log(messageWithCode);
 
   if (!process.env.VITEST) {
     try {
       // The metadata is then handled in loggerUtils.js
-      const childObject: any = { ccCode: code };
-      if (metadata) childObject.ccMetadata = metadata;
+      const childObject: any = { rrCode: code };
+      if (metadata) childObject.rrMetadata = metadata;
 
       logger.child(childObject).info(messageWithCode);
     } catch (err) {
@@ -40,7 +40,7 @@ export function logMessage(code: LogCode, message: string, { metadata }: { metad
   }
 }
 
-export async function checkUserPermissions(userId: string, permissions: CcPermissions): Promise<boolean> {
+export async function checkUserPermissions(userId: string, permissions: RrPermissions): Promise<boolean> {
   const { success } = await auth.api.userHasPermission({ body: { userId, permissions } });
   return success;
 }
@@ -48,7 +48,7 @@ export async function checkUserPermissions(userId: string, permissions: CcPermis
 export async function authorizeUser({
   permissions,
 }: {
-  permissions?: CcPermissions;
+  permissions?: RrPermissions;
 } = {}): Promise<typeof auth.$Infer.Session> {
   const session = await auth.api.getSession({ headers: await headers() });
 
@@ -473,6 +473,6 @@ export async function getPersonExactMatchWcaId(
 
     return null;
   } else {
-    throw new CcActionError("Error while fetching person matches from the WCA");
+    throw new RrActionError("Error while fetching person matches from the WCA");
   }
 }

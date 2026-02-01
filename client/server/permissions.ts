@@ -33,7 +33,7 @@ const permissions = {
   videoBasedResults,
 };
 
-export type CcPermissions = Partial<typeof permissions>;
+export type RrPermissions = Partial<typeof permissions>;
 
 export const Roles = ["admin", "mod", "user"] as const;
 export type Role = (typeof Roles)[number];

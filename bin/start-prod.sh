@@ -19,7 +19,7 @@ if [ "$1" != "--restart" ] && [ "$1" != "-r" ]; then
   pnpm run db:migrate &&
   cd .. &&
 
-  sudo docker compose -f docker-compose.cc.yml up -d
+  sudo docker compose -f docker-compose.rr.yml up -d
 else
   sudo apt update &&
   sudo apt dist-upgrade &&
@@ -27,12 +27,12 @@ else
   # TO-DO: MAKE DUMPS WORK AGAIN (use Supabase cron)!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   # ./bin/dump-db.sh /dump
 
-  sudo docker stop cc-nextjs &&
+  sudo docker stop rr-nextjs &&
 
   cd client &&
   pnpm run db:migrate &&
   cd .. &&
   echo && # just print a new line in the terminal
 
-  sudo docker compose -f docker-compose.cc.yml up -d
+  sudo docker compose -f docker-compose.rr.yml up -d
 fi

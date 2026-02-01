@@ -11,7 +11,7 @@ if [ "$(pwd | tail -c 5)" == "/bin" ]; then
   exit 1
 fi
 
-docker compose -f docker-compose.cc.yml down
+docker compose -f docker-compose.rr.yml down
 
 if [ "$1" != "--cleanup" ] && [ "$1" != "-c" ]; then
   source .env # needed for the build args
@@ -22,5 +22,5 @@ if [ "$1" != "--cleanup" ] && [ "$1" != "-c" ]; then
   pnpm run db:migrate &&
   cd .. &&
 
-  docker compose -f docker-compose.cc.yml up
+  docker compose -f docker-compose.rr.yml up
 fi

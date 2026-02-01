@@ -3,14 +3,14 @@ import { getColumns, sql } from "drizzle-orm";
 import { check, integer, jsonb, text, timestamp, varchar } from "drizzle-orm/pg-core";
 import type { Schedule } from "~/helpers/types/Schedule.ts";
 import { ContestStateValues, ContestTypeValues } from "~/helpers/types.ts";
-import { ccSchema } from "~/server/db/schema/schema.ts";
+import { rrSchema } from "~/server/db/schema/schema.ts";
 import { tableTimestamps } from "../dbUtils.ts";
 import { usersTable } from "./auth-schema.ts";
 
-export const contestStateEnum = ccSchema.enum("contest_state", ContestStateValues);
-export const contestTypeEnum = ccSchema.enum("contest_type", ContestTypeValues);
+export const contestStateEnum = rrSchema.enum("contest_state", ContestStateValues);
+export const contestTypeEnum = rrSchema.enum("contest_type", ContestTypeValues);
 
-export const contestsTable = ccSchema.table(
+export const contestsTable = rrSchema.table(
   "contests",
   {
     id: integer().primaryKey().generatedAlwaysAsIdentity(),

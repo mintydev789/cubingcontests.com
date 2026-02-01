@@ -64,7 +64,7 @@ async function send({
 
     await callback(html);
   } catch (err) {
-    logMessage("CC5001", `Error while sending email with template ${templateFileName}: ${err}`);
+    logMessage("RR5001", `Error while sending email with template ${templateFileName}: ${err}`);
   }
 }
 

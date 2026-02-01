@@ -7,12 +7,12 @@ export const handlePayload = (events, meta) => {
   // You can add in top-level keys via this callback, or completely disable `metadata` key nesting by passing the payload as is, as shown below.
   const item = defaultPreparePayload(events, meta);
 
-  item.appname = "cubingcontests";
-  item.metadata = { project_ref: "default", cc_code: meta.cleanedPayload.ccCode };
+  item.appname = "recordranks";
+  item.metadata = { project_ref: "default", rr_code: meta.cleanedPayload.rrCode };
 
-  if (meta.cleanedPayload.ccMetadata) {
-    for (const [key, value] of Object.entries(meta.cleanedPayload.ccMetadata)) {
-      item.metadata[`cc_${key}`] = value;
+  if (meta.cleanedPayload.rrMetadata) {
+    for (const [key, value] of Object.entries(meta.cleanedPayload.rrMetadata)) {
+      item.metadata[`rr_${key}`] = value;
     }
   }
 

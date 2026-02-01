@@ -3,11 +3,11 @@ DROP EXTENSION IF EXISTS pgjwt CASCADE; -- not used for supabase/postgres from P
 CREATE EXTENSION unaccent;
 SELECT * FROM pg_extension; -- log available extensions
 
--- Create Cubing Contests user and schema
+-- Create user and schema
 \set db_name `echo "$POSTGRES_DB"`
-\set db_schema `echo "$CC_DB_SCHEMA"`
-\set db_username `echo "$CC_DB_USERNAME"`
-\set db_password `echo "$CC_DB_PASSWORD"`
+\set db_schema `echo "$RR_DB_SCHEMA"`
+\set db_username `echo "$RR_DB_USERNAME"`
+\set db_password `echo "$RR_DB_PASSWORD"`
 
 CREATE USER :"db_username" WITH PASSWORD :'db_password';
 CREATE SCHEMA :"db_schema";

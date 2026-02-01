@@ -288,7 +288,7 @@ function ContestForm({
       setTimezone(tz);
       setOrganizerNames([res.data!.name, ""]);
       setOrganizers([res.data!, null]);
-      setContact(`${session.user.username}@cc.com`);
+      setContact(`${session.user.username}@example.com`);
       setDescription("THIS IS A MOCK CONTEST FOR TESTING!");
       setCompetitorLimit(100);
 

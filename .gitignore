@@ -43,6 +43,5 @@ client/next-env.d.ts
 volumes/db/data
 volumes/storage
 
-# Other (TEMPORARY!!!!!!!!!!!!!!!)
+# Other (TEMPORARY!!!!!!!!!!!!!!! ALSO REMOVE THE SAME DIRECTORY FROM .dockerignore!!!!)
 client/dump
-client/new_records

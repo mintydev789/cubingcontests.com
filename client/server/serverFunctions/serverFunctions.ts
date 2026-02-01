@@ -20,7 +20,7 @@ import {
 import { sendEmail, sendRoleChangedEmail } from "~/server/email/mailer.ts";
 import { type Role, Roles } from "~/server/permissions.ts";
 import { type PersonResponse, personsPublicCols, personsTable } from "../db/schema/persons.ts";
-import { actionClient, CcActionError } from "../safeAction.ts";
+import { actionClient, RrActionError } from "../safeAction.ts";
 import { checkUserPermissions, logMessage } from "../serverUtilityFunctions.ts";
 
 export const logAffiliateLinkClickSF = actionClient
@@ -31,7 +31,7 @@ export const logAffiliateLinkClickSF = actionClient
     }),
   )
   .action(async ({ parsedInput: { message } }) => {
-    logMessage("CC0004", message);
+    logMessage("RR0004", message);
   });
 
 export const logErrorSF = actionClient
@@ -42,7 +42,7 @@ export const logErrorSF = actionClient
     }),
   )
   .action(async ({ parsedInput: { message } }) => {
-    logMessage("CC5000", message);
+    logMessage("RR5000", message);
   });
 
 export const logUserDeletedSF = actionClient
@@ -53,7 +53,7 @@ export const logUserDeletedSF = actionClient
     }),
   )
   .action(async ({ parsedInput: { id } }) => {
-    logMessage("CC0034", `Deleting user with ID ${id}`);
+    logMessage("RR0034", `Deleting user with ID ${id}`);
   });
 
 export const updateUserSF = actionClient
@@ -67,13 +67,13 @@ export const updateUserSF = actionClient
   )
   .action<{ user: typeof auth.$Infer.Session.user; person?: PersonResponse }>(
     async ({ parsedInput: { id, personId, role } }) => {
-      logMessage("CC0033", `Updating user with ID ${id} (new person ID: ${personId}; new role: ${role})`);
+      logMessage("RR0033", `Updating user with ID ${id} (new person ID: ${personId}; new role: ${role})`);
 
       const hdrs = await headers();
 
       const [user] = await db.select().from(usersTable).where(eq(usersTable.id, id)).limit(1);
-      if (!user) throw new CcActionError("User not found");
-      if (!user.emailVerified) throw new CcActionError("This user hasn't verified their email address yet");
+      if (!user) throw new RrActionError("User not found");
+      if (!user.emailVerified) throw new RrActionError("This user hasn't verified their email address yet");
 
       let person: PersonResponse | undefined;
       if (personId) {
@@ -83,15 +83,15 @@ export const updateUserSF = actionClient
             .from(usersTable)
             .where(and(ne(usersTable.id, id), eq(usersTable.personId, personId)))
             .limit(1);
-          if (samePersonUser) throw new CcActionError("The selected person is already tied to another user");
+          if (samePersonUser) throw new RrActionError("The selected person is already tied to another user");
         }
 
         person = (
           await db.select(personsPublicCols).from(personsTable).where(eq(personsTable.id, personId)).limit(1)
         ).at(0);
-        if (!person) throw new CcActionError(`Person with ID ${personId} not found`);
+        if (!person) throw new RrActionError(`Person with ID ${personId} not found`);
       } else if (role !== "user") {
-        throw new CcActionError("Privileged users must have a person tied to their account");
+        throw new RrActionError("Privileged users must have a person tied to their account");
       }
 
       if (user.role !== role) {
@@ -121,10 +121,10 @@ export const updateUserSF = actionClient
 export const startNewCollectiveCubingSolutionSF = actionClient
   .metadata({ permissions: null })
   .action<CollectiveSolutionResponse>(async ({ ctx: { session } }) => {
-    logMessage("CC0029", "Starting new Collective Cubing solution");
+    logMessage("RR0029", "Starting new Collective Cubing solution");
 
     const ongoingSolution = await db.query.collectiveSolutions.findFirst({ where: { state: "ongoing" } });
-    if (ongoingSolution) throw new CcActionError("The cube has already been scrambled", { data: ongoingSolution });
+    if (ongoingSolution) throw new RrActionError("The cube has already been scrambled", { data: ongoingSolution });
 
     const eventId = "222";
     const scramble = await randomScrambleForEvent(eventId);
@@ -174,11 +174,11 @@ export const makeCollectiveCubingMoveSF = actionClient
       const [ongoingSolution] = await db.select().from(csTable).where(eq(csTable.state, "ongoing")).limit(1);
 
       if (!ongoingSolution) {
-        throw new CcActionError("The puzzle is already solved", { data: { isSolved: true } });
+        throw new RrActionError("The puzzle is already solved", { data: { isSolved: true } });
       }
 
       if (user.id === ongoingSolution.lastUserWhoInteracted) {
-        throw new CcActionError(
+        throw new RrActionError(
           ongoingSolution.solution
             ? "You may not make two moves in a row"
             : "You scrambled the cube, so you may not make the first move",
@@ -186,7 +186,7 @@ export const makeCollectiveCubingMoveSF = actionClient
       }
 
       if (ongoingSolution.solution !== lastSeenSolution) {
-        throw new CcActionError("The state of the cube has changed before your move", { data: ongoingSolution });
+        throw new RrActionError("The state of the cube has changed before your move", { data: ongoingSolution });
       }
 
       const solution = new Alg(ongoingSolution.solution).concat(move);

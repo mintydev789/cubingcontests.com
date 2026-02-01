@@ -2,13 +2,13 @@ import "server-only";
 import { getColumns } from "drizzle-orm";
 import { boolean, integer, text, varchar } from "drizzle-orm/pg-core";
 import { RecordCategoryValues, RecordTypeValues } from "~/helpers/types.ts";
-import { ccSchema } from "~/server/db/schema/schema.ts";
+import { rrSchema } from "~/server/db/schema/schema.ts";
 import { tableTimestamps } from "../dbUtils.ts";
 
-export const recordCategoryEnum = ccSchema.enum("record_category", RecordCategoryValues);
-export const recordTypeEnum = ccSchema.enum("record_type", RecordTypeValues);
+export const recordCategoryEnum = rrSchema.enum("record_category", RecordCategoryValues);
+export const recordTypeEnum = rrSchema.enum("record_type", RecordTypeValues);
 
-export const recordConfigsTable = ccSchema.table("record_configs", {
+export const recordConfigsTable = rrSchema.table("record_configs", {
   id: integer().primaryKey().generatedAlwaysAsIdentity(),
   recordTypeId: recordTypeEnum().notNull(),
   category: recordCategoryEnum().notNull(),

@@ -1,5 +1,5 @@
 {
-  name: 'cubing-contests',
+  name: 'record-ranks',
   type: 'module',
   private: true,
   scripts: {

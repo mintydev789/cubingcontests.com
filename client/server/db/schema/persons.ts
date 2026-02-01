@@ -2,10 +2,10 @@ import "server-only";
 import { getColumns } from "drizzle-orm";
 import { boolean, integer, text, varchar } from "drizzle-orm/pg-core";
 import { usersTable } from "~/server/db/schema/auth-schema.ts";
-import { ccSchema } from "~/server/db/schema/schema.ts";
+import { rrSchema } from "~/server/db/schema/schema.ts";
 import { tableTimestamps } from "../dbUtils.ts";
 
-export const personsTable = ccSchema.table("persons", {
+export const personsTable = rrSchema.table("persons", {
   id: integer().primaryKey().generatedAlwaysAsIdentity(),
   name: text().notNull(),
   localizedName: text(),

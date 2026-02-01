@@ -396,7 +396,7 @@ services:
       - ./volumes/db/roles.sql:/docker-entrypoint-initdb.d/init-scripts/99-roles.sql:Z
       # Initialize the database settings with JWT_SECRET and JWT_EXP
       - ./volumes/db/jwt.sql:/docker-entrypoint-initdb.d/init-scripts/99-jwt.sql:Z
-      # Custom addition for setting up Cubing Contests init data
+      # CUSTOM ADDITION for setting up init data
       - ./volumes/db/init/data.sql:/docker-entrypoint-initdb.d/init-scripts/99-initdata.sql:Z
       # PGDATA directory is persisted between restarts
       - ./volumes/db/data:/var/lib/postgresql/data:Z
@@ -426,9 +426,9 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXP: ${JWT_EXPIRY}
-      CC_DB_SCHEMA: ${CC_DB_SCHEMA}
-      CC_DB_USERNAME: ${CC_DB_USERNAME}
-      CC_DB_PASSWORD: ${CC_DB_PASSWORD}
+      RR_DB_SCHEMA: ${RR_DB_SCHEMA}
+      RR_DB_USERNAME: ${RR_DB_USERNAME}
+      RR_DB_PASSWORD: ${RR_DB_PASSWORD}
     command: [
         "postgres",
         "-c",
@@ -507,10 +507,10 @@ services:
 
 networks:
   supabase:
-    name: cubingcontests_supabase
+    name: recordranks_supabase
     driver: bridge
   shared:
-    name: cubingcontests_shared
+    name: recordranks_shared
     driver: bridge
 volumes:
   db-config:

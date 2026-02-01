@@ -44,7 +44,7 @@ import {
   type SelectContest,
   contestsTable as table,
 } from "../db/schema/contests.ts";
-import { actionClient, CcActionError } from "../safeAction.ts";
+import { actionClient, RrActionError } from "../safeAction.ts";
 
 const RoundsListValidator = z
   .array(RoundValidator)
@@ -144,14 +144,14 @@ export const getModContestsSF = actionClient
     // If it's a moderator, only get their own contests
     if (!getIsAdmin(session.user.role)) {
       const msg = "Your competitor profile must be tied to your account before you can use moderator features";
-      if (!session.user.personId) throw new CcActionError(msg);
+      if (!session.user.personId) throw new RrActionError(msg);
 
       const [userPerson] = await db
         .select({ id: personsTable.id })
         .from(personsTable)
         .where(eq(personsTable.id, session.user.personId));
 
-      if (!userPerson) throw new CcActionError(msg);
+      if (!userPerson) throw new RrActionError(msg);
       queryFilters.push(arrayContains(table.organizerIds, [userPerson.id]));
     }
 
@@ -161,7 +161,7 @@ export const getModContestsSF = actionClient
         .from(personsTable)
         .where(eq(personsTable.id, organizerPersonId));
 
-      if (!organizerPerson) throw new CcActionError(`Person with ID ${organizerPersonId} not found`);
+      if (!organizerPerson) throw new RrActionError(`Person with ID ${organizerPersonId} not found`);
       queryFilters.push(arrayContains(table.organizerIds, [organizerPerson.id]));
     }
 
@@ -180,7 +180,7 @@ export const getTimeZoneFromCoordsSF = actionClient
   .action<string>(async ({ parsedInput: { latitude, longitude } }) => {
     const timezone = findTimezone(latitude, longitude).at(0);
 
-    if (!timezone) throw new CcActionError(`Time zone for coordinates ${latitude}, ${longitude} not found`);
+    if (!timezone) throw new RrActionError(`Time zone for coordinates ${latitude}, ${longitude} not found`);
 
     return timezone;
   });
@@ -200,22 +200,22 @@ export const createContestSF = actionClient
         session: { user },
       },
     }) => {
-      logMessage("CC0005", `Creating contest ${newContestDto.competitionId}`);
+      logMessage("RR0005", `Creating contest ${newContestDto.competitionId}`);
 
       // No need to check that the state is not removed, because removed contests have _REMOVED at the end of the competitionId anyways
       const sameIdContest = await db.query.contests.findFirst({
         where: { competitionId: newContestDto.competitionId },
       });
-      if (sameIdContest) throw new CcActionError(`A contest with the ID ${newContestDto.competitionId} already exists`);
+      if (sameIdContest) throw new RrActionError(`A contest with the ID ${newContestDto.competitionId} already exists`);
       const sameNameContest = await db.query.contests.findFirst({
         where: { name: newContestDto.name, state: { NOT: "removed" } },
       });
-      if (sameNameContest) throw new CcActionError(`A contest with the name ${newContestDto.name} already exists`);
+      if (sameNameContest) throw new RrActionError(`A contest with the name ${newContestDto.name} already exists`);
       const sameShortContest = await db.query.contests.findFirst({
         where: { shortName: newContestDto.shortName, state: { NOT: "removed" } },
       });
       if (sameShortContest)
-        throw new CcActionError(`A contest with the short name ${newContestDto.shortName} already exists`);
+        throw new RrActionError(`A contest with the short name ${newContestDto.shortName} already exists`);
 
       await validateAndCleanUpContest(newContestDto, rounds, user);
 
@@ -223,7 +223,7 @@ export const createContestSF = actionClient
         columns: { name: true },
         where: { id: user.personId! },
       });
-      if (!creatorPerson) throw new CcActionError("Contest creator's competitor profile not found");
+      if (!creatorPerson) throw new RrActionError("Contest creator's competitor profile not found");
 
       const organizerUsers = await db.query.users.findMany({
         columns: { email: true },
@@ -256,17 +256,17 @@ export const approveContestSF = actionClient
     }),
   )
   .action(async ({ parsedInput: { competitionId } }) => {
-    logMessage("CC0006", `Approving contest ${competitionId}`);
+    logMessage("RR0006", `Approving contest ${competitionId}`);
 
     const contest = await db.query.contests.findFirst({
       columns: { competitionId: true, name: true, shortName: true, state: true, organizerIds: true, createdBy: true },
       where: { competitionId },
     });
-    if (!contest) throw new CcActionError(`Contest with ID ${competitionId} not found`);
-    if (contest.state !== "created") throw new CcActionError("Contest has already been approved");
+    if (!contest) throw new RrActionError(`Contest with ID ${competitionId} not found`);
+    if (contest.state !== "created") throw new RrActionError("Contest has already been approved");
 
     const creatorUser = await db.query.users.findFirst({ columns: { email: true }, where: { id: contest.createdBy! } });
-    if (!creatorUser) throw new CcActionError("Contest creator's user profile not found");
+    if (!creatorUser) throw new RrActionError("Contest creator's user profile not found");
 
     await db.transaction(async (tx) => {
       await tx.update(table).set({ state: "approved" }).where(eq(table.competitionId, competitionId));
@@ -292,7 +292,7 @@ export const finishContestSF = actionClient
         session: { user },
       },
     }) => {
-      logMessage("CC0007", `Finishing contest ${competitionId}`);
+      logMessage("RR0007", `Finishing contest ${competitionId}`);
 
       const contest = await db.query.contests.findFirst({
         columns: {
@@ -307,13 +307,13 @@ export const finishContestSF = actionClient
         },
         where: { competitionId },
       });
-      if (!contest) throw new CcActionError(`Contest with ID ${competitionId} not found`);
+      if (!contest) throw new RrActionError(`Contest with ID ${competitionId} not found`);
 
       if (!getUserHasAccessToContest(user, contest))
-        throw new CcActionError("You do not have access rights for this contest");
-      if (contest.state !== "ongoing") throw new CcActionError("Contest cannot be finished");
+        throw new RrActionError("You do not have access rights for this contest");
+      if (contest.state !== "ongoing") throw new RrActionError("Contest cannot be finished");
       if (["meetup", "comp"].includes(contest.type) && contest.participants < C.minCompetitorsForNonWca)
-        throw new CcActionError(
+        throw new RrActionError(
           `A meetup or unofficial competition may not have fewer than ${C.minCompetitorsForNonWca} competitors`,
         );
 
@@ -343,9 +343,9 @@ export const finishContestSF = actionClient
         if (roundResults.length === 0 || (roundNumber > 1 && roundResults.length < C.minProceedNumber)) {
           const event = (await db.query.events.findFirst({ columns: { name: true }, where: { eventId } }))!;
 
-          if (roundResults.length === 0) throw new CcActionError(`${event.name} round ${roundNumber} has no results`);
+          if (roundResults.length === 0) throw new RrActionError(`${event.name} round ${roundNumber} has no results`);
           else
-            throw new CcActionError(
+            throw new RrActionError(
               `${event.name} round ${roundNumber} has fewer than ${C.minProceedNumber} results (see WCA regulation 9q+)`,
             );
         }
@@ -359,7 +359,7 @@ export const finishContestSF = actionClient
           where: { eventId: incompleteResult.eventId },
         }))!;
         const round = rounds.find((r) => r.id === incompleteResult.roundId)!;
-        throw new CcActionError(`This contest has an unentered attempt in ${event.name} round ${round.roundNumber}`);
+        throw new RrActionError(`This contest has an unentered attempt in ${event.name} round ${round.roundNumber}`);
       }
 
       // If there are no issues, finish the contest and close all rounds
@@ -388,11 +388,11 @@ export const unfinishContestSF = actionClient
     }),
   )
   .action(async ({ parsedInput: { competitionId } }) => {
-    logMessage("CC0008", `Un-finishing contest ${competitionId}`);
+    logMessage("RR0008", `Un-finishing contest ${competitionId}`);
 
     const contest = await db.query.contests.findFirst({ columns: { state: true }, where: { competitionId } });
-    if (!contest) throw new CcActionError(`Contest with ID ${competitionId} not found`);
-    if (contest.state !== "finished") throw new CcActionError("Contest cannot be un-finished");
+    if (!contest) throw new RrActionError(`Contest with ID ${competitionId} not found`);
+    if (contest.state !== "finished") throw new RrActionError("Contest cannot be un-finished");
 
     // Set contest state back to ongoing and re-open all final rounds
     await db.transaction(async (tx) => {
@@ -413,7 +413,7 @@ export const publishContestSF = actionClient
     }),
   )
   .action(async ({ parsedInput: { competitionId } }) => {
-    logMessage("CC0009", `Publishing contest ${competitionId}`);
+    logMessage("RR0009", `Publishing contest ${competitionId}`);
 
     const contest = await db.query.contests.findFirst({
       columns: {
@@ -426,8 +426,8 @@ export const publishContestSF = actionClient
       },
       where: { competitionId },
     });
-    if (!contest) throw new CcActionError(`Contest with ID ${competitionId} not found`);
-    if (contest.state !== "finished") throw new CcActionError("Contest cannot be published");
+    if (!contest) throw new RrActionError(`Contest with ID ${competitionId} not found`);
+    if (contest.state !== "finished") throw new RrActionError("Contest cannot be published");
 
     const creatorUser = await db.query.users.findFirst({
       columns: { email: true },
@@ -439,7 +439,7 @@ export const publishContestSF = actionClient
       const res = await fetch(`https://www.worldcubeassociation.org/api/v0/competitions/${competitionId}/results`);
       const wcaCompResultsData = await res.json();
       if (!wcaCompResultsData || wcaCompResultsData.length === 0) {
-        throw new CcActionError(
+        throw new RrActionError(
           "You must wait until the results have been published on the WCA website before publishing the contest",
         );
       }
@@ -461,7 +461,7 @@ export const publishContestSF = actionClient
       });
 
       if (personsToBeApproved.length > 0) {
-        logMessage("CC0023", `Approving participants from ${contest.name}`);
+        logMessage("RR0023", `Approving participants from ${contest.name}`);
 
         if (contest.type === "wca-comp") {
           for (const person of personsToBeApproved) {
@@ -473,7 +473,7 @@ export const publishContestSF = actionClient
 
                 if (name === person.name && wcaPerson.countryIso2 === person.regionCode) {
                   if (updatePersonObject.wcaId) {
-                    throw new CcActionError(
+                    throw new RrActionError(
                       `Multiple matches found while assigning WCA ID for ${name}. Resolve this manually and publish the contest again.`,
                     );
                   }
@@ -484,7 +484,7 @@ export const publishContestSF = actionClient
               }
 
               if (!updatePersonObject.wcaId)
-                throw new CcActionError(`No matches found while assigning WCA ID for ${person.name}`);
+                throw new RrActionError(`No matches found while assigning WCA ID for ${person.name}`);
             }
 
             await tx.update(personsTable).set(updatePersonObject).where(eq(personsTable.id, person.id));
@@ -494,7 +494,7 @@ export const publishContestSF = actionClient
             if (!person.wcaId) {
               const matchedPersonWcaId = await getPersonExactMatchWcaId(person);
               if (matchedPersonWcaId) {
-                throw new CcActionError(
+                throw new RrActionError(
                   `${person.name} has an exact name and country match with the WCA competitor with WCA ID ${matchedPersonWcaId}. Resolve this manually and publish the contest again.`,
                 );
               }
@@ -533,7 +533,7 @@ export const updateContestSF = actionClient
         session: { user },
       },
     }) => {
-      logMessage("CC0010", `Updating contest ${originalCompetitionId}`);
+      logMessage("RR0010", `Updating contest ${originalCompetitionId}`);
 
       const isAdmin = getIsAdmin(user.role);
 
@@ -546,11 +546,11 @@ export const updateContestSF = actionClient
 
       const [contest, prevRounds, results] = await Promise.all([contestPromise, prevRoundsPromise, resultsPromise]);
 
-      if (!contest) throw new CcActionError(`Contest with ID ${originalCompetitionId} not found`);
+      if (!contest) throw new RrActionError(`Contest with ID ${originalCompetitionId} not found`);
       if (!getUserHasAccessToContest(user, contest))
-        throw new CcActionError("You do not have access rights for this contest");
+        throw new RrActionError("You do not have access rights for this contest");
       if (!["created", "approved", "ongoing"].includes(contest.state))
-        throw new CcActionError("Finished contests cannot be edited");
+        throw new RrActionError("Finished contests cannot be edited");
 
       await validateAndCleanUpContest(newContestDto, rounds, user);
 
@@ -567,7 +567,7 @@ export const updateContestSF = actionClient
               where: { competitionId: newContestDto.competitionId },
             });
             if (sameIdContest)
-              throw new CcActionError(`A contest with the ID ${newContestDto.competitionId} already exists`);
+              throw new RrActionError(`A contest with the ID ${newContestDto.competitionId} already exists`);
 
             // Update competition ID everywhere
             updateContestObject.competitionId = newContestDto.competitionId;
@@ -617,7 +617,7 @@ export const deleteContestSF = actionClient
   .metadata({ permissions: { competitions: ["delete"], meetups: ["delete"] } })
   .inputSchema(z.strictObject({ competitionId: z.string() }))
   .action(async ({ parsedInput: { competitionId } }) => {
-    logMessage("CC0011", `Deleting contest ${competitionId}`);
+    logMessage("RR0011", `Deleting contest ${competitionId}`);
 
     const contest = await db.query.contests.findFirst({
       columns: {
@@ -632,8 +632,8 @@ export const deleteContestSF = actionClient
       },
       where: { competitionId },
     });
-    if (!contest) throw new CcActionError(`Contest with ID ${competitionId} not found`);
-    if (contest.participants > 0) throw new CcActionError("You may not remove a contest that has results");
+    if (!contest) throw new RrActionError(`Contest with ID ${competitionId} not found`);
+    if (contest.participants > 0) throw new RrActionError("You may not remove a contest that has results");
 
     await db.transaction(async (tx) => {
       const newCompetitionId = `${competitionId}_REMOVED`;
@@ -671,7 +671,7 @@ export const openRoundSF = actionClient
         session: { user },
       },
     }) => {
-      logMessage("CC0012", `Opening next round for event ${eventId} (contest ${competitionId})`);
+      logMessage("RR0012", `Opening next round for event ${eventId} (contest ${competitionId})`);
 
       const contestPromise = db.query.contests.findFirst({
         columns: { state: true, organizerIds: true },
@@ -686,13 +686,13 @@ export const openRoundSF = actionClient
       const [contest, rounds, results] = await Promise.all([contestPromise, roundsPromise, resultsPromise]);
       const prevOpenRound = rounds.find((r) => r.open === true);
 
-      if (!contest) throw new CcActionError(`Contest with ID ${competitionId} not found`);
+      if (!contest) throw new RrActionError(`Contest with ID ${competitionId} not found`);
       if (!getUserHasAccessToContest(user, contest))
-        throw new CcActionError("You do not have access rights for this contest");
-      if (!prevOpenRound) throw new CcActionError("Previous open round not found");
-      if (prevOpenRound.roundTypeId === "f") throw new CcActionError("The final round for this event is already open");
+        throw new RrActionError("You do not have access rights for this contest");
+      if (!prevOpenRound) throw new RrActionError("Previous open round not found");
+      if (prevOpenRound.roundTypeId === "f") throw new RrActionError("The final round for this event is already open");
       if (getMaxAllowedRounds(rounds, results) < prevOpenRound.roundNumber)
-        throw new CcActionError("Previous rounds do not have enough competitors (see WCA regulation 9m)");
+        throw new RrActionError("Previous rounds do not have enough competitors (see WCA regulation 9m)");
 
       const [openedRound] = await db.transaction(async (tx) => {
         await tx.update(roundsTable).set({ open: false }).where(eq(roundsTable.id, prevOpenRound.id));
@@ -722,24 +722,24 @@ async function validateAndCleanUpContest(
   // Protect against admin-only stuff
   if (!isAdmin) {
     if (!contest.organizerIds.some((id) => id === user.personId))
-      throw new CcActionError("You cannot create a contest which you are not organizing");
+      throw new RrActionError("You cannot create a contest which you are not organizing");
   }
 
   const activityCodes = new Set<string>(); // also used below in schedule validation
 
   for (const round of rounds) {
     const activityCode = `${round.eventId}-r${round.roundNumber}`;
-    if (activityCodes.has(activityCode)) throw new CcActionError(`Duplicate round found: ${activityCode}`);
+    if (activityCodes.has(activityCode)) throw new RrActionError(`Duplicate round found: ${activityCode}`);
     activityCodes.add(activityCode);
 
     if (round.competitionId !== contest.competitionId)
-      throw new CcActionError("A round may not have a competition ID different from the contest's competition ID");
+      throw new RrActionError("A round may not have a competition ID different from the contest's competition ID");
 
     const event = events.find((e) => e.eventId === round.eventId);
-    if (!event) throw new CcActionError(`Event with ID ${round.eventId} not found`);
-    if (event.category === "removed") throw new CcActionError(`${event.name} is a removed event, so it cannot be held`);
+    if (!event) throw new RrActionError(`Event with ID ${round.eventId} not found`);
+    if (event.category === "removed") throw new RrActionError(`${event.name} is a removed event, so it cannot be held`);
     if (event.format === "time" && !round.timeLimitCentiseconds)
-      throw new CcActionError(`${event.name} round ${round.roundNumber} doesn't have a time limit`);
+      throw new RrActionError(`${event.name} round ${round.roundNumber} doesn't have a time limit`);
 
     if (
       event.format !== "time" &&
@@ -748,7 +748,7 @@ async function validateAndCleanUpContest(
         round.cutoffAttemptResult ||
         round.cutoffNumberOfAttempts)
     )
-      throw new CcActionError("A round of an event with a non-time format cannot have a time limit or cutoff");
+      throw new RrActionError("A round of an event with a non-time format cannot have a time limit or cutoff");
   }
 
   // Check round numbers and round types
@@ -760,15 +760,15 @@ async function validateAndCleanUpContest(
       for (let i = 0; i < eventRounds.length; i++) {
         const { roundNumber, roundTypeId } = eventRounds[i];
         if (roundNumber !== i + 1)
-          throw new CcActionError(`${event.name} has a missing round number. Please contact the development team.`);
+          throw new RrActionError(`${event.name} has a missing round number. Please contact the development team.`);
 
         const message = `${event.name} has a mismatch between the round numbers and round types. Please contact the development team.`;
         if (roundTypeId === "f") {
-          if (roundNumber !== eventRounds.length) throw new CcActionError(message);
+          if (roundNumber !== eventRounds.length) throw new RrActionError(message);
         } else if (roundTypeId === "s") {
-          if (roundNumber !== eventRounds.length - 1) throw new CcActionError(message);
+          if (roundNumber !== eventRounds.length - 1) throw new RrActionError(message);
         } else if (roundTypeId !== roundNumber.toString()) {
-          throw new CcActionError(message);
+          throw new RrActionError(message);
         }
       }
     }
@@ -780,23 +780,23 @@ async function validateAndCleanUpContest(
     .from(personsTable)
     .where(inArray(personsTable.id, contest.organizerIds));
   if (organizers.length !== contest.organizerIds.length)
-    throw new CcActionError("One of the organizer persons was not found");
+    throw new RrActionError("One of the organizer persons was not found");
 
   // Validation of meetups
   if (contest.type === "meetup") {
     if (rounds.length > C.maxTotalMeetupRounds)
-      throw new CcActionError("You may not hold more than 15 rounds in total at a meetup");
+      throw new RrActionError("You may not hold more than 15 rounds in total at a meetup");
 
     const correctTz = findTimezone(contest.latitudeMicrodegrees / 1000000, contest.longitudeMicrodegrees / 1000000)[0];
     if (contest.timezone !== correctTz)
-      throw new CcActionError("Contest time zone doesn't match time zone at the given coordinates");
+      throw new RrActionError("Contest time zone doesn't match time zone at the given coordinates");
   }
   // Validation of WCA competitions and unofficial competitions
   else {
     for (const round of rounds) {
       const event = events.find((e) => e.eventId === round.eventId)!;
       if (contest.type === "wca-comp" && event.category === "wca") {
-        throw new CcActionError(
+        throw new RrActionError(
           "WCA events may not be added for the WCA Competition contest type. They must be held through the WCA website only.",
         );
       }
@@ -808,36 +808,36 @@ async function validateAndCleanUpContest(
         );
         if (isRoundActivityFound) break;
       }
-      if (!isRoundActivityFound) throw new CcActionError("Please add all rounds to the schedule");
+      if (!isRoundActivityFound) throw new RrActionError("Please add all rounds to the schedule");
     }
 
     // Schedule validation
     for (const venue of contest.schedule!.venues) {
       if (venue.countryIso2 !== contest.regionCode)
-        throw new CcActionError("A venue may not have a country different from the contest country");
+        throw new RrActionError("A venue may not have a country different from the contest country");
       if (
         venue.latitudeMicrodegrees !== contest.latitudeMicrodegrees ||
         venue.longitudeMicrodegrees !== contest.longitudeMicrodegrees
       )
-        throw new CcActionError("The schedule may not have coordinates different from the contest coordinates");
+        throw new RrActionError("The schedule may not have coordinates different from the contest coordinates");
 
       const correctTz = findTimezone(venue.latitudeMicrodegrees / 1000000, venue.longitudeMicrodegrees / 1000000)[0];
       if (venue.timezone !== correctTz)
-        throw new CcActionError("Venue time zone doesn't match time zone at the given coordinates");
+        throw new RrActionError("Venue time zone doesn't match time zone at the given coordinates");
 
       for (const room of venue.rooms) {
         for (const activity of room.activities) {
           if (!/^other-/.test(activity.activityCode) && !activityCodes.has(activity.activityCode))
-            throw new CcActionError(`Activity ${activity.activityCode} does not have a corresponding round`);
+            throw new RrActionError(`Activity ${activity.activityCode} does not have a corresponding round`);
 
           const zonedStartTime = toZonedTime(activity.startTime, venue.timezone).getTime();
           if (zonedStartTime < contest.startDate.getTime())
-            throw new CcActionError("An activity may not start before the start date");
+            throw new RrActionError("An activity may not start before the start date");
           const zonedEndTime = toZonedTime(activity.endTime, venue.timezone).getTime();
           if (zonedEndTime > endOfDay(contest.endDate).getTime())
-            throw new CcActionError("An activity may not end after the end date");
+            throw new RrActionError("An activity may not end after the end date");
           if (zonedStartTime >= zonedEndTime)
-            throw new CcActionError("An activity start time may not be after or at the same time as the end time");
+            throw new RrActionError("An activity start time may not be after or at the same time as the end time");
         }
       }
     }
@@ -868,7 +868,7 @@ async function updateRounds(
     if (!sameRoundInNew) {
       const roundHasResult = results.some((r) => r.roundId === prevRound.id);
       if (roundHasResult) {
-        throw new CcActionError(
+        throw new RrActionError(
           `Round ${prevRound.eventId}-r${prevRound.roundNumber} cannot be deleted, because it has results`,
         );
       } else {
@@ -904,7 +904,7 @@ async function updateRounds(
           await tx.update(resultsTable).set({ proceeds: true }).where(inArray(resultsTable.id, resultsToProceed));
         }
       } else if (!canAddNewEvents) {
-        throw new CcActionError("Moderators are not allowed to add new events. Please contact the admin team.");
+        throw new RrActionError("Moderators are not allowed to add new events. Please contact the admin team.");
       }
 
       roundsToCreate.push(newRound);
@@ -944,7 +944,7 @@ async function getUpdatedSchedule(prevSchedule: Schedule, newSchedule: Schedule)
   // TO-DO: ADD PROPER SUPPORT FOR MULTIPLE VENUES, WITH ADDITION AND DELETION OF VENUES!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   for (const venue of newSchedule.venues) {
     const sameVenueInPrev = prevSchedule.venues.find((v) => v.id === venue.id);
-    if (!sameVenueInPrev) throw new CcActionError(`Schedule venue with ID ${venue.id} not found`);
+    if (!sameVenueInPrev) throw new RrActionError(`Schedule venue with ID ${venue.id} not found`);
 
     sameVenueInPrev.name = venue.name;
     sameVenueInPrev.latitudeMicrodegrees = venue.latitudeMicrodegrees;

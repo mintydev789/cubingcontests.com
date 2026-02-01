@@ -4,12 +4,13 @@ import type { SafeActionResult } from "next-safe-action";
 import { remove as removeAccents } from "remove-accents";
 import z from "zod";
 import { C } from "~/helpers/constants.ts";
-import type { CcServerErrorObject, InputPerson } from "~/helpers/types.ts";
+import type { InputPerson } from "~/helpers/types.ts";
 import { WcaPersonValidator } from "~/helpers/validators/wca/WcaPerson.ts";
 import type { SelectContest } from "~/server/db/schema/contests.ts";
 import type { EventResponse } from "~/server/db/schema/events.ts";
 import type { Attempt, ResultResponse } from "~/server/db/schema/results.ts";
 import type { RoundResponse, SelectRound } from "~/server/db/schema/rounds.ts";
+import type { RrServerErrorObject } from "~/server/safeAction.ts";
 import { type RoundFormatObject, roundFormats } from "./roundFormats.ts";
 import type { MultiChoiceOption } from "./types/MultiChoiceOption.ts";
 import type { ContestType, EventFormat, EventWrPair, RoundFormat } from "./types.ts";
@@ -213,7 +214,7 @@ export const getBlankCompetitors = (participants: number): [InputPerson[], strin
   return [persons, personNames];
 };
 
-export function getActionError(actionResult: SafeActionResult<CcServerErrorObject, any>) {
+export function getActionError(actionResult: SafeActionResult<RrServerErrorObject, any>) {
   if (actionResult.serverError?.message) return actionResult.serverError.message;
 
   if (actionResult.validationErrors) {

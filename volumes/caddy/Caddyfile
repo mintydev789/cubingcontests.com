@@ -30,7 +30,7 @@
 {$PROD_HOSTNAME} {
   import security
 
-  reverse_proxy http://cc-nextjs:3000
+  reverse_proxy http://rr-nextjs:3000
 
   handle_errors 500 502 503 504 {
     rewrite * /down-for-maintenance-page.html

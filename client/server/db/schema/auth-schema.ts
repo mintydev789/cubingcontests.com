@@ -1,8 +1,8 @@
 import "server-only";
 import { boolean, index, integer, text, timestamp } from "drizzle-orm/pg-core";
-import { ccSchema } from "~/server/db/schema/schema.ts";
+import { rrSchema } from "~/server/db/schema/schema.ts";
 
-export const usersTable = ccSchema.table("users", {
+export const usersTable = rrSchema.table("users", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
@@ -22,7 +22,7 @@ export const usersTable = ccSchema.table("users", {
   personId: integer("person_id"),
 });
 
-export const sessionsTable = ccSchema.table(
+export const sessionsTable = rrSchema.table(
   "sessions",
   {
     id: text("id").primaryKey(),
@@ -42,7 +42,7 @@ export const sessionsTable = ccSchema.table(
   (table) => [index("sessions_userId_idx").on(table.userId)],
 );
 
-export const accountsTable = ccSchema.table(
+export const accountsTable = rrSchema.table(
   "accounts",
   {
     id: text("id").primaryKey(),
@@ -66,7 +66,7 @@ export const accountsTable = ccSchema.table(
   (table) => [index("accounts_userId_idx").on(table.userId)],
 );
 
-export const verificationsTable = ccSchema.table(
+export const verificationsTable = rrSchema.table(
   "verifications",
   {
     id: text("id").primaryKey(),

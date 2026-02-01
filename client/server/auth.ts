@@ -44,19 +44,19 @@ export const auth = betterAuth({
     autoSignIn: false,
     requireEmailVerification: true,
     sendResetPassword: async ({ user, url }) => {
-      if (process.env.EMAIL_API_KEY) logMessage("CC0031", `Sending reset password email for user with ID ${user.id}`);
+      if (process.env.EMAIL_API_KEY) logMessage("RR0031", `Sending reset password email for user with ID ${user.id}`);
 
       sendResetPasswordEmail(user.email, url);
     },
     onPasswordReset: async ({ user }) => {
-      if (process.env.EMAIL_API_KEY) logMessage("CC0032", `Sending password changed email for user with ID ${user.id}`);
+      if (process.env.EMAIL_API_KEY) logMessage("RR0032", `Sending password changed email for user with ID ${user.id}`);
 
       sendPasswordChangedEmail(user.email);
     },
   },
   emailVerification: {
     sendVerificationEmail: async ({ user, url }) => {
-      if (process.env.EMAIL_API_KEY) logMessage("CC0030", `Sending verification email for new user with ID ${user.id}`);
+      if (process.env.EMAIL_API_KEY) logMessage("RR0030", `Sending verification email for new user with ID ${user.id}`);
 
       sendVerificationEmail(user.email, url);
     },

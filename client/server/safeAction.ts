@@ -3,7 +3,6 @@ import { createSafeActionClient, DEFAULT_SERVER_ERROR_MESSAGE } from "next-safe-
 import z from "zod";
 import type { authClient } from "~/helpers/authClient.ts";
 import { db } from "~/server/db/provider.ts";
-import type { CcServerErrorObject } from "../helpers/types.ts";
 import { authorizeUser } from "./serverUtilityFunctions.ts";
 
 export const actionClient = createSafeActionClient({
@@ -13,9 +12,9 @@ export const actionClient = createSafeActionClient({
       permissions: z.any().nullable().optional(),
     });
   },
-  handleServerError(e): CcServerErrorObject {
-    if (e instanceof CcActionError) {
-      if (!process.env.VITEST) console.error("CC action error:", e.message);
+  handleServerError(e): RrServerErrorObject {
+    if (e instanceof RrActionError) {
+      if (!process.env.VITEST) console.error("RR action error:", e.message);
       return { message: e.message, data: e.data };
     }
 
@@ -38,13 +37,18 @@ export const actionClient = createSafeActionClient({
   }
 });
 
-export class CcActionError extends Error {
+export type RrServerErrorObject = {
+  message: string;
+  data?: any;
+};
+
+export class RrActionError extends Error {
   data?: any;
 
   constructor(message: string, options?: { data: any }, ...rest: any[]) {
     super(message, ...rest);
 
-    this.name = "CcActionError";
+    this.name = "RrActionError";
     if (options) {
       this.data = options.data;
     }

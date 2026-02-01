@@ -19,7 +19,7 @@ import { resultsTable, type SelectResult } from "./server/db/schema/results.ts";
 // Used in tests too
 export const testUsers = [
   {
-    email: "admin@cc.com",
+    email: "admin@example.com",
     username: "admin",
     name: "admin",
     password: "Temporary_good_password123",
@@ -28,7 +28,7 @@ export const testUsers = [
     emailVerified: true,
   },
   {
-    email: "mod@cc.com",
+    email: "mod@example.com",
     username: "mod",
     name: "mod",
     password: "Temporary_good_password123",
@@ -37,7 +37,7 @@ export const testUsers = [
     emailVerified: true,
   },
   {
-    email: "user@cc.com",
+    email: "user@example.com",
     username: "user",
     name: "user",
     password: "Temporary_good_password123",
@@ -45,7 +45,7 @@ export const testUsers = [
     emailVerified: true,
   },
   {
-    email: "new_user@cc.com",
+    email: "new_user@example.com",
     username: "new_user",
     name: "new_user",
     password: "Temporary_good_password123",

@@ -2,14 +2,14 @@ import "server-only";
 import { boolean, integer, text } from "drizzle-orm/pg-core";
 import { getColumns } from "drizzle-orm/utils";
 import { EventCategoryValues, EventFormatValues, RoundFormatValues } from "~/helpers/types.ts";
-import { ccSchema } from "~/server/db/schema/schema.ts";
+import { rrSchema } from "~/server/db/schema/schema.ts";
 import { tableTimestamps } from "../dbUtils.ts";
 
-export const eventFormatEnum = ccSchema.enum("event_format", EventFormatValues);
-export const roundFormatEnum = ccSchema.enum("round_format", RoundFormatValues);
-export const eventCategoryEnum = ccSchema.enum("event_category", EventCategoryValues);
+export const eventFormatEnum = rrSchema.enum("event_format", EventFormatValues);
+export const roundFormatEnum = rrSchema.enum("round_format", RoundFormatValues);
+export const eventCategoryEnum = rrSchema.enum("event_category", EventCategoryValues);
 
-export const eventsTable = ccSchema.table("events", {
+export const eventsTable = rrSchema.table("events", {
   id: integer().primaryKey().generatedAlwaysAsIdentity(),
   eventId: text().notNull().unique(),
   name: text().notNull(),

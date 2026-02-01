@@ -34,7 +34,7 @@ import {
   resultsTable as table,
 } from "../db/schema/results.ts";
 import { sendVideoBasedResultSubmittedNotification } from "../email/mailer.ts";
-import { actionClient, CcActionError } from "../safeAction.ts";
+import { actionClient, RrActionError } from "../safeAction.ts";
 import {
   getContestParticipantIds,
   getRecordConfigs,
@@ -58,7 +58,7 @@ export const getWrPairUpToDateSF = actionClient
   )
   .action<EventWrPair>(async ({ parsedInput: { recordCategory, eventId, recordsUpTo, excludeResultId } }) => {
     const event = await db.query.events.findFirst({ where: { eventId } });
-    if (!event) throw new CcActionError(`Event with ID ${eventId} not found`);
+    if (!event) throw new RrActionError(`Event with ID ${eventId} not found`);
 
     const singleWrResult = await getRecordResult(event, "best", "WR", recordCategory, {
       recordsUpTo,
@@ -88,7 +88,7 @@ export const createContestResultSF = actionClient
     }) => {
       const { eventId, personIds, competitionId, roundId } = newResultDto;
       logMessage(
-        "CC0013",
+        "RR0013",
         `Creating contest result for contest ${competitionId}, event ${eventId}, round ${roundId} and persons ${personIds.join(", ")}: ${JSON.stringify(newResultDto.attempts)}`,
       );
 
@@ -107,23 +107,23 @@ export const createContestResultSF = actionClient
       ]);
       const round = rounds.find((r) => r.id === roundId);
 
-      if (!contest) throw new CcActionError(`Contest with ID ${competitionId} not found`);
+      if (!contest) throw new RrActionError(`Contest with ID ${competitionId} not found`);
       if (!getUserHasAccessToContest(user, contest))
-        throw new CcActionError("You do not have access rights for this contest");
-      if (!event) throw new CcActionError(`Event with ID ${newResultDto.eventId} not found`);
-      if (!round) throw new CcActionError(`Round with ID ${newResultDto.roundId} not found`);
-      if (!round.open) throw new CcActionError("The round is not open");
+        throw new RrActionError("You do not have access rights for this contest");
+      if (!event) throw new RrActionError(`Event with ID ${newResultDto.eventId} not found`);
+      if (!round) throw new RrActionError(`Round with ID ${newResultDto.roundId} not found`);
+      if (!round.open) throw new RrActionError("The round is not open");
       // Same check as in createVideoBasedResultSF
       const notFoundPersonId = personIds.find((pid) => !participants.some((p) => p.id === pid));
-      if (notFoundPersonId) throw new CcActionError(`Person with ID ${notFoundPersonId} not found`);
+      if (notFoundPersonId) throw new RrActionError(`Person with ID ${notFoundPersonId} not found`);
       // Same check as in createVideoBasedResultSF
       if (newResultDto.personIds.length !== event.participants) {
-        throw new CcActionError(
+        throw new RrActionError(
           `This event must have ${event.participants} participant${event.participants > 1 ? "s" : ""}`,
         );
       }
       if (roundResults.some((r) => r.personIds.some((pid) => newResultDto.personIds.includes(pid))))
-        throw new CcActionError("The competitor(s) already has a result in this round");
+        throw new RrActionError("The competitor(s) already has a result in this round");
       // Check that all of the participants have proceeded to this round
       if (round.roundNumber > 1) {
         const prevRound = rounds.find((r) => r.roundNumber === round.roundNumber - 1)!;
@@ -133,7 +133,7 @@ export const createContestResultSF = actionClient
         );
 
         if (notProceededCompetitorIndex >= 0) {
-          throw new CcActionError(
+          throw new RrActionError(
             `Competitor${event.participants > 1 ? ` ${notProceededCompetitorIndex + 1}` : ""} has not proceeded to this round`,
           );
         }
@@ -166,7 +166,7 @@ export const createContestResultSF = actionClient
         (newResult.regionalSingleRecord || newResult.regionalAverageRecord) &&
         differenceInDays(new Date(), newResult.date) > 30
       ) {
-        throw new CcActionError(OLD_RESULT_WITH_RECORD_VALIDATION_ERROR_MSG);
+        throw new RrActionError(OLD_RESULT_WITH_RECORD_VALIDATION_ERROR_MSG);
       }
 
       await db.transaction(async (tx) => {
@@ -206,9 +206,9 @@ export const updateContestResultSF = actionClient
       },
     }) => {
       const result = await db.query.results.findFirst({ where: { id, competitionId: { isNotNull: true } } });
-      if (!result) throw new CcActionError(`Result with ID ${id} not found`);
+      if (!result) throw new RrActionError(`Result with ID ${id} not found`);
 
-      logMessage("CC0014", `Updating result with ID ${id} (new attempts: ${JSON.stringify(newAttempts)})`);
+      logMessage("RR0014", `Updating result with ID ${id} (new attempts: ${JSON.stringify(newAttempts)})`);
 
       const contestPromise = db.query.contests.findFirst({ where: { competitionId: result.competitionId! } });
       const eventPromise = db.query.events.findFirst({ where: { eventId: result.eventId } });
@@ -225,11 +225,11 @@ export const updateContestResultSF = actionClient
         roundResultsPromise,
       ]);
 
-      if (!contest) throw new CcActionError(`Contest with ID ${result.competitionId} not found`);
+      if (!contest) throw new RrActionError(`Contest with ID ${result.competitionId} not found`);
       if (!getUserHasAccessToContest(user, contest))
-        throw new CcActionError("You do not have access rights for this contest");
-      if (!event) throw new CcActionError(`Event with ID ${result.eventId} not found`);
-      if (!round) throw new CcActionError(`Round with ID ${result.roundId} not found`);
+        throw new RrActionError("You do not have access rights for this contest");
+      if (!event) throw new RrActionError(`Event with ID ${result.eventId} not found`);
+      if (!round) throw new RrActionError(`Round with ID ${result.roundId} not found`);
 
       const recordConfigs = await getRecordConfigs(contest.type === "meetup" ? "meetups" : "competitions");
       const roundFormat = roundFormats.find((rf) => rf.value === round.format)!;
@@ -256,7 +256,7 @@ export const updateContestResultSF = actionClient
           newResult.regionalAverageRecord) &&
         differenceInDays(new Date(), result.date) > 30
       ) {
-        throw new CcActionError(OLD_RESULT_WITH_RECORD_VALIDATION_ERROR_MSG);
+        throw new RrActionError(OLD_RESULT_WITH_RECORD_VALIDATION_ERROR_MSG);
       }
 
       await db.transaction(async (tx) => {
@@ -314,17 +314,17 @@ export const deleteContestResultSF = actionClient
       },
     }) => {
       const result = await db.query.results.findFirst({ where: { id, competitionId: { isNotNull: true } } });
-      if (!result) throw new CcActionError(`Result with ID ${id} not found`);
+      if (!result) throw new RrActionError(`Result with ID ${id} not found`);
 
       if (
         !process.env.VITEST &&
         (result.regionalSingleRecord || result.regionalAverageRecord) &&
         differenceInDays(new Date(), result.date) > 30
       ) {
-        throw new CcActionError(OLD_RESULT_WITH_RECORD_VALIDATION_ERROR_MSG);
+        throw new RrActionError(OLD_RESULT_WITH_RECORD_VALIDATION_ERROR_MSG);
       }
 
-      logMessage("CC0015", `Deleting contest result: ${JSON.stringify(result)}`);
+      logMessage("RR0015", `Deleting contest result: ${JSON.stringify(result)}`);
 
       const contestPromise = db.query.contests.findFirst({ where: { competitionId: result.competitionId! } });
       const eventPromise = db.query.events.findFirst({ where: { eventId: result.eventId } });
@@ -341,11 +341,11 @@ export const deleteContestResultSF = actionClient
         roundResultsPromise,
       ]);
 
-      if (!contest) throw new CcActionError(`Contest with ID ${result.competitionId} not found`);
+      if (!contest) throw new RrActionError(`Contest with ID ${result.competitionId} not found`);
       if (!getUserHasAccessToContest(user, contest))
-        throw new CcActionError("You do not have access rights for this contest");
-      if (!event) throw new CcActionError(`Event with ID ${result.eventId} not found`);
-      if (!round) throw new CcActionError(`Round with ID ${result.roundId} not found`);
+        throw new RrActionError("You do not have access rights for this contest");
+      if (!event) throw new RrActionError(`Event with ID ${result.eventId} not found`);
+      if (!round) throw new RrActionError(`Round with ID ${result.roundId} not found`);
 
       const recordConfigs = await getRecordConfigs(contest.type === "meetup" ? "meetups" : "competitions");
 
@@ -393,15 +393,15 @@ export const createVideoBasedResultSF = actionClient
         session: { user },
       },
     }) => {
-      logMessage("CC0016", `Creating video-based result: ${JSON.stringify(newResultDto)}`);
+      logMessage("RR0016", `Creating video-based result: ${JSON.stringify(newResultDto)}`);
 
       const isAdmin = getIsAdmin(user.role);
 
       // Disallow admin-only features
       if (!isAdmin) {
-        if (newResultDto.videoLink === "") throw new CcActionError("Please enter a video link");
+        if (newResultDto.videoLink === "") throw new RrActionError("Please enter a video link");
         if (newResultDto.attempts.some((a) => a.result === C.maxTime))
-          throw new CcActionError("You are not authorized to set unknown time");
+          throw new RrActionError("You are not authorized to set unknown time");
       }
 
       const eventPromise = db.query.events.findFirst({ where: { eventId: newResultDto.eventId } });
@@ -414,13 +414,13 @@ export const createVideoBasedResultSF = actionClient
         recordConfigsPromise,
       ]);
 
-      if (!event) throw new CcActionError(`Event with ID ${newResultDto.eventId} not found`);
+      if (!event) throw new RrActionError(`Event with ID ${newResultDto.eventId} not found`);
       // Same check as in createContestResultSF
       const notFoundPersonId = newResultDto.personIds.find((pid) => !participants.some((p) => p.id === pid));
-      if (notFoundPersonId) throw new CcActionError(`Person with ID ${notFoundPersonId} not found`);
+      if (notFoundPersonId) throw new RrActionError(`Person with ID ${notFoundPersonId} not found`);
       // Same check as in createContestResultSF
       if (newResultDto.personIds.length !== event.participants)
-        throw new CcActionError(
+        throw new RrActionError(
           `This event must have ${event.participants} participant${event.participants > 1 ? "s" : ""}`,
         );
 
@@ -506,7 +506,7 @@ async function setResultRecord(
 
   if (isWr) {
     const wrRecordConfig = recordConfigs.find((rc) => rc.recordTypeId === "WR")!;
-    logMessage("CC0024", `New ${result.eventId} ${type} ${wrRecordConfig.label}: ${result[bestOrAverage]}`);
+    logMessage("RR0024", `New ${result.eventId} ${type} ${wrRecordConfig.label}: ${result[bestOrAverage]}`);
     result[recordField] = "WR";
   } else if (
     result.superRegionCode &&
@@ -523,7 +523,7 @@ async function setResultRecord(
 
     if (isCr) {
       const crRecordConfig = recordConfigs.find((rc) => rc.recordTypeId === crType)!;
-      logMessage("CC0024", `New ${result.eventId} ${type} ${crRecordConfig.label}: ${result[bestOrAverage]}`);
+      logMessage("RR0024", `New ${result.eventId} ${type} ${crRecordConfig.label}: ${result[bestOrAverage]}`);
       result[recordField] = crType;
     } else if (result.regionCode && result.regionCode !== crResult?.regionCode) {
       // Set NR
@@ -536,7 +536,7 @@ async function setResultRecord(
 
       if (isNr) {
         const nrRecordConfig = recordConfigs.find((rc) => rc.recordTypeId === "NR")!;
-        logMessage("CC0024", `New ${result.eventId} ${type} ${nrRecordConfig.label}: ${result[bestOrAverage]}`);
+        logMessage("RR0024", `New ${result.eventId} ${type} ${nrRecordConfig.label}: ${result[bestOrAverage]}`);
         result[recordField] = "NR";
       }
     }
@@ -606,7 +606,7 @@ async function setFutureRecords(
 
     for (const wr of newWrResults) {
       const date = format(wr.date, "d MMM yyyy");
-      logMessage("CC0025", `New ${type} WR for event ${deletedResult.eventId}: ${wr[bestOrAverage]} (${date})`);
+      logMessage("RR0025", `New ${type} WR for event ${deletedResult.eventId}: ${wr[bestOrAverage]} (${date})`);
     }
   }
 
@@ -650,7 +650,7 @@ async function setFutureRecords(
 
     for (const cr of newCrResults) {
       const date = format(cr.date, "d MMM yyyy");
-      logMessage("CC0025", `New ${type} ${crType} for event ${deletedResult.eventId}: ${cr[bestOrAverage]} (${date})`);
+      logMessage("RR0025", `New ${type} ${crType} for event ${deletedResult.eventId}: ${cr[bestOrAverage]} (${date})`);
     }
   }
 
@@ -702,7 +702,7 @@ async function setFutureRecords(
       const date = format(nr.date, "d MMM yyyy");
       const country = Countries.find((c) => c.code === nr.regionCode)!.name;
       logMessage(
-        "CC0025",
+        "RR0025",
         `New ${type} NR (${country}) for event ${deletedResult.eventId}: ${nr[bestOrAverage]} (${date})`,
       );
     }
@@ -749,7 +749,7 @@ async function cancelFutureRecords(
       .returning();
     for (const r of cancelledWrCrNrResults) {
       const message = `CANCELLED ${r.eventId} ${type} ${wrLabel}, ${crLabel} or ${nrLabel}: ${r[bestOrAverage]} (country code ${r.regionCode})`;
-      logMessage("CC0026", message);
+      logMessage("RR0026", message);
     }
 
     const wrCrChangedToNrResults = await tx
@@ -768,7 +768,7 @@ async function cancelFutureRecords(
       .returning();
     for (const r of wrCrChangedToNrResults) {
       const message = `CHANGED ${r.eventId} ${type} ${wrLabel} or ${crLabel} to ${nrLabel}: ${r[bestOrAverage]} (country code ${r.regionCode})`;
-      logMessage("CC0026", message);
+      logMessage("RR0026", message);
     }
 
     // Has to be done like this, because we can't dynamically determine the CR type to be set
@@ -786,7 +786,7 @@ async function cancelFutureRecords(
         .returning();
 
       const message = `CHANGED ${r.eventId} ${type} ${wrLabel} to ${resultCrLabel}: ${r[bestOrAverage]} (country code ${r.regionCode})`;
-      logMessage("CC0026", message);
+      logMessage("RR0026", message);
     }
   } else if (["ER", "NAR", "SAR", "AsR", "AfR", "OcR"].includes(result[recordField]!)) {
     const cancelledCrNrResults = await tx
@@ -805,7 +805,7 @@ async function cancelFutureRecords(
       .returning();
     for (const r of cancelledCrNrResults) {
       const message = `CANCELLED ${r.eventId} ${type} ${crLabel} or ${nrLabel}: ${r[bestOrAverage]} (country code ${r.regionCode})`;
-      logMessage("CC0026", message);
+      logMessage("RR0026", message);
     }
 
     const crChangedToNrResults = await tx
@@ -822,7 +822,7 @@ async function cancelFutureRecords(
       .returning();
     for (const r of crChangedToNrResults) {
       const message = `CHANGED ${r.eventId} ${type} ${crLabel} to ${nrLabel}: ${r[bestOrAverage]} (country code ${r.regionCode})`;
-      logMessage("CC0026", message);
+      logMessage("RR0026", message);
     }
   } else if (result[recordField] === "NR") {
     const cancelledNrResults = await tx
@@ -832,7 +832,7 @@ async function cancelFutureRecords(
       .returning();
     for (const r of cancelledNrResults) {
       const message = `CANCELLED ${r.eventId} ${type} ${nrLabel}: ${r[bestOrAverage]} (country code ${r.regionCode})`;
-      logMessage("CC0026", message);
+      logMessage("RR0026", message);
     }
   }
 }
@@ -876,7 +876,7 @@ async function validateTimeLimitAndCutoff(
   // Time limit validation
   if (round.timeLimitCentiseconds) {
     if (attempts.some((a) => a.result > round.timeLimitCentiseconds!))
-      throw new CcActionError(`This round has a time limit of ${getFormattedTime(round.timeLimitCentiseconds)}`);
+      throw new RrActionError(`This round has a time limit of ${getFormattedTime(round.timeLimitCentiseconds)}`);
 
     if (round.timeLimitCumulativeRoundIds) {
       // Add up all attempt times from the new result and results from other rounds included in the cumulative time limit
@@ -892,7 +892,7 @@ async function validateTimeLimitAndCutoff(
         for (const attempt of res.attempts) total += attempt.result;
 
       if (total >= round.timeLimitCentiseconds) {
-        throw new CcActionError(
+        throw new RrActionError(
           `This round has a cumulative time limit of ${getFormattedTime(round.timeLimitCentiseconds)}${
             round.timeLimitCumulativeRoundIds.length > 0
               ? ` for these rounds: ${round.id}, ${round.timeLimitCumulativeRoundIds.join(", ")}`
@@ -911,7 +911,7 @@ async function validateTimeLimitAndCutoff(
       if (attempts.length > round.cutoffNumberOfAttempts!) {
         const attemptsPastCutoffNumberOfAttempts = attempts.slice(round.cutoffNumberOfAttempts);
         if (attemptsPastCutoffNumberOfAttempts.some((a) => a.result !== 0))
-          throw new CcActionError(`This round has a cutoff of ${getFormattedTime(round.cutoffAttemptResult)}`);
+          throw new RrActionError(`This round has a cutoff of ${getFormattedTime(round.cutoffAttemptResult)}`);
         else outputAttempts = attempts.slice(0, round.cutoffNumberOfAttempts);
       }
 
@@ -920,7 +920,7 @@ async function validateTimeLimitAndCutoff(
   }
 
   if (attempts.length !== expectedNumberOfAttempts) {
-    throw new CcActionError(
+    throw new RrActionError(
       `The number of attempts should be ${expectedNumberOfAttempts}; received: ${attempts.length}`,
     );
   }

@@ -7,7 +7,7 @@ import { db } from "~/server/db/provider.ts";
 import type { SelectEvent } from "~/server/db/schema/events.ts";
 import { eventsTable as table } from "~/server/db/schema/events.ts";
 import { logMessage } from "~/server/serverUtilityFunctions.ts";
-import { actionClient, CcActionError } from "../safeAction.ts";
+import { actionClient, RrActionError } from "../safeAction.ts";
 
 export const createEventSF = actionClient
   .metadata({ permissions: { events: ["create"] } })
@@ -17,17 +17,17 @@ export const createEventSF = actionClient
     }),
   )
   .action<SelectEvent>(async ({ parsedInput: { newEventDto } }) => {
-    logMessage("CC0002", `Creating new event with ID ${newEventDto.eventId}`);
+    logMessage("RR0002", `Creating new event with ID ${newEventDto.eventId}`);
 
     const [sameIdEvent] = await db.select().from(table).where(eq(table.eventId, newEventDto.eventId)).limit(1);
-    if (sameIdEvent) throw new CcActionError(`Event with ID ${newEventDto.eventId} already exists`);
+    if (sameIdEvent) throw new RrActionError(`Event with ID ${newEventDto.eventId} already exists`);
 
     const [sameNameEvent] = await db
       .select()
       .from(table)
       .where(eq(sql`LOWER(${table.name})`, newEventDto.name.toLowerCase()))
       .limit(1);
-    if (sameNameEvent) throw new CcActionError(`Event with name ${newEventDto.name} already exists`);
+    if (sameNameEvent) throw new RrActionError(`Event with name ${newEventDto.name} already exists`);
 
     const [createdEvent] = await db.insert(table).values(newEventDto).returning();
     return createdEvent;
@@ -42,14 +42,14 @@ export const updateEventSF = actionClient
     }),
   )
   .action<SelectEvent>(async ({ parsedInput: { originalEventId, newEventDto } }) => {
-    logMessage("CC0003", `Updating event with ID ${newEventDto.eventId}`);
+    logMessage("RR0003", `Updating event with ID ${newEventDto.eventId}`);
 
     const [event] = await db.select().from(table).where(eq(table.eventId, originalEventId)).limit(1);
-    if (!event) throw new CcActionError(`Event with ID ${originalEventId} not found`);
+    if (!event) throw new RrActionError(`Event with ID ${originalEventId} not found`);
 
     const [updatedEvent] = await db.transaction(async (tx) => {
       if (newEventDto.eventId !== originalEventId) {
-        throw new CcActionError("NOT IMPLEMENTED! Please contact the development team.");
+        throw new RrActionError("NOT IMPLEMENTED! Please contact the development team.");
 
         // const [sameIdEvent] = await tx.select().from(table).where(eq(table.eventId, newEventDto.eventId)).limit(1);
         // if (sameIdEvent) throw new CcActionError(`Event with ID ${newEventDto.eventId} already exists`);

@@ -14,7 +14,7 @@ import {
   type SelectPerson,
   personsTable as table,
 } from "~/server/db/schema/persons.ts";
-import { actionClient, CcActionError } from "../safeAction.ts";
+import { actionClient, RrActionError } from "../safeAction.ts";
 import { checkUserPermissions, getPersonExactMatchWcaId, logMessage } from "../serverUtilityFunctions.ts";
 
 type GetOrCreatePersonObject = {
@@ -31,7 +31,7 @@ export const getPersonByIdSF = actionClient
   )
   .action<PersonResponse>(async ({ parsedInput: { id } }) => {
     const [person] = await db.select(personsPublicCols).from(table).where(eq(table.id, id));
-    if (!person) throw new CcActionError(`Person with ID ${id} not found`);
+    if (!person) throw new RrActionError(`Person with ID ${id} not found`);
     return person;
   });
 
@@ -67,7 +67,7 @@ export const getOrCreatePersonSF = actionClient
       .where(and(eq(table.name, name), eq(table.regionCode, regionCode)));
 
     if (persons.length > 1)
-      throw new CcActionError(`Multiple people were found with the name ${name} and country ${regionCode}`);
+      throw new RrActionError(`Multiple people were found with the name ${name} and country ${regionCode}`);
 
     if (persons.length === 1) return { person: persons[0], isNew: false };
 
@@ -91,7 +91,7 @@ export const getOrCreatePersonByWcaIdSF = actionClient
     if (person) return { person, isNew: false };
 
     const wcaPerson = await fetchWcaPerson(wcaId);
-    if (!wcaPerson) throw new CcActionError(`Person with WCA ID ${wcaId} not found`);
+    if (!wcaPerson) throw new RrActionError(`Person with WCA ID ${wcaId} not found`);
 
     const res = await createPersonSF({ newPersonDto: wcaPerson });
     if (!res.data) throw new Error(res.serverError?.message || C.unknownErrorMsg);
@@ -117,7 +117,7 @@ export const createPersonSF = actionClient
       newPersonDto.name = newPersonDto.name.trim();
       if (newPersonDto.localizedName) newPersonDto.localizedName = newPersonDto.localizedName.trim();
       const { name, wcaId } = newPersonDto;
-      logMessage("CC0019", `Creating person with name ${name} and ${wcaId ? `WCA ID ${wcaId}` : "no WCA ID"}`);
+      logMessage("RR0019", `Creating person with name ${name} and ${wcaId ? `WCA ID ${wcaId}` : "no WCA ID"}`);
 
       const canApprove = await checkUserPermissions(user.id, { persons: ["approve"] });
 
@@ -142,16 +142,16 @@ export const updatePersonSF = actionClient
   .action<PersonResponse | SelectPerson>(
     async ({ parsedInput: { id, newPersonDto, ignoreDuplicate }, ctx: { session } }) => {
       const { name, wcaId } = newPersonDto;
-      logMessage("CC0020", `Updating person with name ${name} and ${wcaId ? `WCA ID ${wcaId}` : "no WCA ID"}`);
+      logMessage("RR0020", `Updating person with name ${name} and ${wcaId ? `WCA ID ${wcaId}` : "no WCA ID"}`);
 
       const canApprove = await checkUserPermissions(session.user.id, { persons: ["approve"] });
 
       const [person] = await db.select().from(table).where(eq(table.id, id)).limit(1);
-      if (!person) throw new CcActionError("Person with the provided ID not found");
-      if (!canApprove && person.approved) throw new CcActionError("You may not edit a person who has been approved");
+      if (!person) throw new RrActionError("Person with the provided ID not found");
+      if (!canApprove && person.approved) throw new RrActionError("You may not edit a person who has been approved");
       // TO-DO: WE MAY HAVE TO DO SOMETHING ABOUT PAST RECORDS SET BY THE COMPETITOR WHO IS CHANGING THEIR COUNTRY!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       if (person.regionCode !== newPersonDto.regionCode) {
-        throw new CcActionError(
+        throw new RrActionError(
           "Changing a person's country is not currently supported. Please contact the development team.",
         );
       }
@@ -162,7 +162,7 @@ export const updatePersonSF = actionClient
 
       if (newPersonDto.wcaId) {
         const wcaPerson = await fetchWcaPerson(newPersonDto.wcaId);
-        if (!wcaPerson) throw new CcActionError(`Person with WCA ID ${newPersonDto.wcaId} not found`);
+        if (!wcaPerson) throw new RrActionError(`Person with WCA ID ${newPersonDto.wcaId} not found`);
         personDto = wcaPerson;
       }
 
@@ -180,31 +180,31 @@ export const deletePersonSF = actionClient
     }),
   )
   .action(async ({ parsedInput: { id }, ctx: { session } }) => {
-    logMessage("CC0021", `Deleting person with ID ${id}`);
+    logMessage("RR0021", `Deleting person with ID ${id}`);
 
     const canApprove = await checkUserPermissions(session.user.id, { persons: ["approve"] });
 
     const [person] = await db.select().from(table).where(eq(table.id, id)).limit(1);
-    if (!person) throw new CcActionError("Person with the provided ID not found");
-    if (!canApprove && person.approved) throw new CcActionError("You may not delete an approved person");
+    if (!person) throw new RrActionError("Person with the provided ID not found");
+    if (!canApprove && person.approved) throw new RrActionError("You may not delete an approved person");
 
     const user = await db.query.users.findFirst({ where: { personId: person.id } });
     if (user) {
-      throw new CcActionError(
+      throw new RrActionError(
         `You may not delete a person tied to a user. This person is tied to the user ${user.username}.`,
       );
     }
 
     const result = await db.query.results.findFirst({ where: { personIds: { arrayContains: [person.id] } } });
     if (result) {
-      throw new CcActionError(
+      throw new RrActionError(
         `You may not delete a person who has a result. This person has a result in ${result.eventId}${result.competitionId ? ` at ${result.competitionId}` : ""}.`,
       );
     }
 
     const organizedContest = await db.query.contests.findFirst({ where: { organizerIds: { arrayContains: [id] } } });
     if (organizedContest) {
-      throw new CcActionError(
+      throw new RrActionError(
         `You may not delete a person who has organized a contest. This person was an organizer at ${organizedContest.competitionId}.`,
       );
     }
@@ -222,14 +222,14 @@ export const approvePersonSF = actionClient
   )
   .action<SelectPerson>(async ({ parsedInput: { id, ignoredWcaMatches } }) => {
     const [person] = await db.select().from(table).where(eq(table.id, id)).limit(1);
-    if (!person) throw new CcActionError("Person not found");
-    if (person.approved) throw new CcActionError(`${person.name} has already been approved`);
+    if (!person) throw new RrActionError("Person not found");
+    if (person.approved) throw new RrActionError(`${person.name} has already been approved`);
 
     const result = await db.query.results.findFirst({ where: { personIds: { arrayContains: [id] } } });
     if (!result) {
       const organizedContest = await db.query.contests.findFirst({ where: { organizerIds: { arrayContains: [id] } } });
       if (!organizedContest) {
-        throw new CcActionError(
+        throw new RrActionError(
           `${person.name} has no results and hasn't organized any contests. They could have been added by accident.`,
         );
       }
@@ -237,13 +237,13 @@ export const approvePersonSF = actionClient
 
     const matchedPersonWcaId = await getPersonExactMatchWcaId(person, ignoredWcaMatches);
     if (matchedPersonWcaId) {
-      throw new CcActionError(
+      throw new RrActionError(
         `${person.name} has an exact name and country match with the WCA competitor with WCA ID ${matchedPersonWcaId}. If that is the same person, edit their profile, adding the WCA ID. If it's a different person, simply approve them again to confirm.`,
         { data: { wcaMatches: [...ignoredWcaMatches, matchedPersonWcaId] } },
       );
     }
 
-    logMessage("CC0022", `Approving person ${person.name} (CC ID: ${person.id})`);
+    logMessage("RR0022", `Approving person ${person.name} (CC ID: ${person.id})`);
 
     const [approvedPerson] = await db.update(table).set({ approved: true }).where(eq(table.id, id)).returning();
     return approvedPerson;
@@ -270,7 +270,7 @@ async function validatePerson(
       .where(and(eq(table.wcaId, newPersonDto.wcaId), excludeCondition))
       .limit(1);
 
-    if (sameWcaIdPerson) throw new CcActionError("A person with the same WCA ID already exists in the CC database");
+    if (sameWcaIdPerson) throw new RrActionError("A person with the same WCA ID already exists in the CC database");
   } else if (!ignoreDuplicate || !isAdmin) {
     const [duplicatePerson] = await db
       .select()
@@ -279,7 +279,7 @@ async function validatePerson(
       .limit(1);
 
     if (duplicatePerson) {
-      throw new CcActionError(
+      throw new RrActionError(
         `A person with the same name and country already exists. If it's actually a different competitor with the same name, ${
           isAdmin
             ? "simply submit them again."
