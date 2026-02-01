@@ -4,8 +4,8 @@ if [ -z "$1" ] || [ "$1" != "--no-checks" ]; then
   cd client
   pnpm run check &&
   cp ../.env ./.env.local &&
-  pnpm run build &&
   pnpm run test --bail=1 &&
+  pnpm run build &&
   cd ..
 fi
 

@@ -62,6 +62,7 @@ function ContestEvents({
       });
     }
   }
+  contestEvents.sort((a, b) => a.event.rank - b.event.rank);
   const remainingEvents: EventResponse[] = filteredEvents.filter(
     (e) => !contestEvents.some((ce) => ce.event.eventId === e.eventId),
   );
