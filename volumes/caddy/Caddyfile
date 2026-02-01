@@ -17,10 +17,10 @@
 
     # Other
     Referrer-Policy strict-origin-when-cross-origin
-    Content-Security-Policy "default-src 'self' https://*.worldcubeassociation.org/ {$SUPABASE_PUBLIC_URL};
+    Content-Security-Policy "default-src 'self' https://*.worldcubeassociation.org/;
                              script-src 'self' 'unsafe-inline' 'unsafe-eval';
                              style-src 'self' 'unsafe-inline';
-                             img-src 'self' data:"
+                             img-src 'self' {$SUPABASE_PUBLIC_URL} data:"
     X-Frame-Options SAMEORIGIN
     -X-Powered-By # hide "powered by Next JS"
     via Caddy # hide the Caddy version
