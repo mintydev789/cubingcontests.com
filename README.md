@@ -96,6 +96,16 @@ competitor did not make cutoff.
 
 ## Deployment
 
+STUFF ABOUT client/app/favicon.ico (GITIGNORED!)
+CREATE PUBLIC BUCKET CALLED public_bucket
+CREATE POLICY WITH TEMPLATE "Give access to a nested folder called admin/assets only to a specific user"
+Policy name: Give access to assets folder
+Allowed operation: (select all)
+Target roles: authenticated
+Policy definition: bucket_id = 'public_bucket' AND (storage.foldername(name))[1] = 'assets' AND (select auth.uid()::text) = '<LEAVE PRE-FILLED USER ID>'
+
+Then create "assets" folder at the root of the bucket.
+
 Please contact us at <MAKE THIS REFER TO CONTACT PAGE!> if you want to set
 up your own instance of Cubing Contests. Please do **NOT** try to deploy your
 own instance until this project is ready for that (you will find instructions in

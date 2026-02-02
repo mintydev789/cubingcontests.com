@@ -18,6 +18,7 @@ if [ "$1" != "--cleanup" ] && [ "$1" != "-c" ]; then
 
   docker build --build-arg NEXT_PUBLIC_BASE_URL="$NEXT_PUBLIC_BASE_URL" \
                --build-arg NEXT_PUBLIC_CONTACT_EMAIL="$NEXT_PUBLIC_CONTACT_EMAIL" \
+               --build-arg NEXT_PUBLIC_STORAGE_PUBLIC_BUCKET_BASE_URL="$NEXT_PUBLIC_STORAGE_PUBLIC_BUCKET_BASE_URL" \
                -t "$DOCKER_IMAGE_NAME" ./client &&
 
   cd client &&

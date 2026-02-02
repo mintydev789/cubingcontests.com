@@ -7,6 +7,7 @@ const height = 192 / 2;
 const width = 1920 / 2;
 const className = "d-flex justify-content-center w-100 max-w-100 mb-3";
 const style = { overflow: "clip", backgroundColor: "#151515" };
+const bannersUrlPath = `${process.env.NEXT_PUBLIC_STORAGE_PUBLIC_BUCKET_BASE_URL}/assets/banners`;
 
 type Props = {
   type: "3x3" | "2x2" | "wca" | "fto" | "mirror" | "kilominx" | "other";
@@ -30,12 +31,7 @@ function AffiliateLink({ type }: Props) {
           className={className}
           style={style}
         >
-          <img
-            src="https://supabase.cubingcontests.com/storage/v1/object/public/Public%20Files/assets/banners/3x3.jpg"
-            height={height}
-            width={width}
-            alt="Cuboss ad for 3x3x3 puzzles"
-          />
+          <img src={`${bannersUrlPath}/3x3.jpg`} height={height} width={width} alt="Cuboss ad for 3x3x3 puzzles" />
         </a>
       );
     case "2x2":
@@ -48,12 +44,7 @@ function AffiliateLink({ type }: Props) {
           className={className}
           style={style}
         >
-          <img
-            src="https://supabase.cubingcontests.com/storage/v1/object/public/Public%20Files/assets/banners/2x2.jpg"
-            height={height}
-            width={width}
-            alt="Cuboss ad for 2x2x2 puzzles"
-          />
+          <img src={`${bannersUrlPath}/2x2.jpg`} height={height} width={width} alt="Cuboss ad for 2x2x2 puzzles" />
         </a>
       );
     case "wca":
@@ -66,12 +57,7 @@ function AffiliateLink({ type }: Props) {
           className={className}
           style={style}
         >
-          <img
-            src="https://supabase.cubingcontests.com/storage/v1/object/public/Public%20Files/assets/banners/wca.jpg"
-            height={height}
-            width={width}
-            alt="Cuboss ad for WCA puzzles"
-          />
+          <img src={`${bannersUrlPath}/wca.jpg`} height={height} width={width} alt="Cuboss ad for WCA puzzles" />
         </a>
       );
     case "fto":
@@ -84,12 +70,7 @@ function AffiliateLink({ type }: Props) {
           className={className}
           style={style}
         >
-          <img
-            src="https://supabase.cubingcontests.com/storage/v1/object/public/Public%20Files/assets/banners/fto.jpg"
-            height={height}
-            width={width}
-            alt="Cuboss ad for FTO puzzles"
-          />
+          <img src={`${bannersUrlPath}/fto.jpg`} height={height} width={width} alt="Cuboss ad for FTO puzzles" />
         </a>
       );
     case "mirror":
@@ -103,7 +84,7 @@ function AffiliateLink({ type }: Props) {
           style={style}
         >
           <img
-            src="https://supabase.cubingcontests.com/storage/v1/object/public/Public%20Files/assets/banners/mirror.jpg"
+            src={`${bannersUrlPath}/mirror.jpg`}
             height={height}
             width={width}
             alt="Cuboss ad for Mirror Blocks puzzles"
@@ -121,7 +102,7 @@ function AffiliateLink({ type }: Props) {
           style={style}
         >
           <img
-            src="https://supabase.cubingcontests.com/storage/v1/object/public/Public%20Files/assets/banners/kilominx.jpg"
+            src={`${bannersUrlPath}/kilominx.jpg`}
             height={height}
             width={width}
             alt="Cuboss ad for Kilominx puzzles"
@@ -138,12 +119,7 @@ function AffiliateLink({ type }: Props) {
           className={className}
           style={style}
         >
-          <img
-            src="https://supabase.cubingcontests.com/storage/v1/object/public/Public%20Files/assets/banners/other.jpg"
-            height={height}
-            width={width}
-            alt="Cuboss ad"
-          />
+          <img src={`${bannersUrlPath}/other.jpg`} height={height} width={width} alt="Cuboss ad" />
         </a>
       );
     default:

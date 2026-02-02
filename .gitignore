@@ -9,8 +9,6 @@
 client/.next/
 client/out/
 client/build
-server/dist
-server/helpers
 
 # misc
 .DS_Store
@@ -43,5 +41,8 @@ client/next-env.d.ts
 volumes/db/data
 volumes/storage
 
-# Other (TEMPORARY!!!!!!!!!!!!!!! ALSO REMOVE THE SAME DIRECTORY FROM .dockerignore!!!!)
+# Other
+client/app/favicon.ico
+
+# (TEMPORARY!!!!!!!!!!!!!!! ALSO REMOVE THE SAME DIRECTORY FROM .dockerignore!!!!)
 client/dump

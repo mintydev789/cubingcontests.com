@@ -33,6 +33,7 @@ if [ -z "$1" ] || [ "$1" != '--no-docker' ]; then
   # Build Next JS container
   docker build --build-arg NEXT_PUBLIC_BASE_URL="https://$PROD_HOSTNAME" \
                --build-arg NEXT_PUBLIC_CONTACT_EMAIL="$NEXT_PUBLIC_CONTACT_EMAIL" \
+               --build-arg NEXT_PUBLIC_STORAGE_PUBLIC_BUCKET_BASE_URL="$NEXT_PUBLIC_STORAGE_PUBLIC_BUCKET_BASE_URL" \
                -t "$DOCKER_IMAGE_NAME:$new_version" ./client &&
 
   docker tag "$DOCKER_IMAGE_NAME:$new_version"  "$DOCKER_IMAGE_NAME:latest" &&
