@@ -1,5 +1,4 @@
-import { serve } from "https://deno.land/std@0.131.0/http/server.ts";
-import * as jose from "https://deno.land/x/jose@v4.14.4/index.ts";
+import * as jose from "jose";
 
 console.log("main function started");
 
@@ -30,7 +29,7 @@ async function verifyJWT(jwt: string): Promise<boolean> {
   return true;
 }
 
-serve(async (req: Request) => {
+Deno.serve(async (req: Request) => {
   if (req.method !== "OPTIONS" && VERIFY_JWT) {
     try {
       const token = getAuthToken(req);
@@ -42,7 +41,7 @@ serve(async (req: Request) => {
           headers: { "Content-Type": "application/json" },
         });
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
       return new Response(JSON.stringify({ msg: e.toString() }), {
         status: 401,
@@ -75,6 +74,7 @@ serve(async (req: Request) => {
   const envVars = Object.keys(envVarsObj).map((k) => [k, envVarsObj[k]]);
 
   try {
+    // @ts-expect-error: EdgeRuntime is actually a global object available here
     const worker = await EdgeRuntime.userWorkers.create({
       servicePath,
       memoryLimitMb,

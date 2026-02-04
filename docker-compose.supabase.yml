@@ -435,6 +435,8 @@ services:
         "config_file=/etc/postgresql/postgresql.conf",
         "-c",
         "log_min_messages=fatal", # prevents Realtime polling queries from appearing in logs
+        "-c",
+        "cron.database_name=${POSTGRES_DB}", # custom addition to specify custom DB name (otherwise, pg_cron uses DB "postgres")
       ]
 
   vector:

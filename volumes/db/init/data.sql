@@ -1,5 +1,6 @@
 -- Set up extensions
 DROP EXTENSION IF EXISTS pgjwt CASCADE; -- not used for supabase/postgres from PG version 17
+CREATE EXTENSION pg_cron;
 CREATE EXTENSION unaccent;
 SELECT * FROM pg_extension; -- log available extensions
 
