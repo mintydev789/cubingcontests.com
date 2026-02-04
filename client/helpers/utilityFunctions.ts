@@ -40,7 +40,7 @@ export function getFormattedDate(startDate: Date, endDate?: Date | null): string
   }
 }
 
-// Returns null if the time is invalid
+// Returns NaN if the time is invalid
 const getCentiseconds = (
   time: string, // the time string without formatting (e.g. 1:35.97 should be "13597")
   {
@@ -50,7 +50,7 @@ const getCentiseconds = (
     round?: boolean;
     throwErrorWhenInvalidTime?: boolean;
   } = { round: true, throwErrorWhenInvalidTime: false },
-): number | null => {
+): number => {
   if (time === "") return 0;
 
   let hours = 0;
@@ -75,13 +75,13 @@ const getCentiseconds = (
         `Invalid time: ${time}. Debug info: hours = ${hours}, minutes = ${minutes}, centiseconds = ${centiseconds}, time = ${time}, round = ${round}`,
       );
     }
-    return null;
+    return NaN;
   }
 
   return hours * 360000 + minutes * 6000 + centiseconds;
 };
 
-// Returns null if the time is invalid (e.g. 8145); returns 0 if it's empty.
+// Returns NaN if the time is invalid (e.g. 8145); returns 0 if it's empty.
 // solved and attempted are only required for the Multi event format.
 export function getAttempt(
   attempt: Attempt,
@@ -113,22 +113,21 @@ export function getAttempt(
   const newAttempt: Attempt = { result: getCentiseconds(time, { round: roundTime }) as any };
   if (memo) {
     newAttempt.memo = getCentiseconds(memo, { round: roundMemo }) as any;
-    if (newAttempt.memo && newAttempt.result && newAttempt.memo >= newAttempt.result) {
-      return { ...newAttempt, result: null as any };
-    }
+    if (newAttempt.memo && newAttempt.result && newAttempt.memo >= newAttempt.result)
+      return { ...newAttempt, result: NaN };
   }
 
   if (event.format === "multi" && newAttempt.result) {
-    if (typeof solved !== "number" || typeof attempted !== "number" || solved > attempted)
-      return { result: null as any };
+    if (typeof solved !== "number" || typeof attempted !== "number" || solved > attempted) return { result: NaN };
 
     const maxTime = Math.min(attempted, 6) * 60000 + attempted * 200; // accounts for +2s
 
     // Disallow submitting multi times > max time, and <= 1 hour for old style
-    if (event.eventId === "333mbf" && newAttempt.result > maxTime) {
-      return { ...newAttempt, result: null as any };
-    } else if (event.eventId === "333mbo" && newAttempt.result <= 360000) {
-      return { ...newAttempt, result: null as any };
+    if (
+      (event.eventId === "333mbf" && newAttempt.result > maxTime) ||
+      (event.eventId === "333mbo" && newAttempt.result <= 360000)
+    ) {
+      return { ...newAttempt, result: NaN };
     }
 
     // See the IResult interface for information about how this works

@@ -77,11 +77,12 @@ function AttemptInput({
     [memoText, event],
   );
 
-  const isInvalidAttempt = attempt.result === null || attempt.memo === null || (!!maxTime && attempt.result > maxTime);
+  const isInvalidAttempt =
+    Number.isNaN(attempt.result) || Number.isNaN(attempt.memo) || (!!maxTime && attempt.result > maxTime);
   const includeMemo = memoInputForBld && event.hasMemo;
 
   useEffect(() => {
-    if (attempt.result !== null && attempt.memo !== null) {
+    if (!Number.isNaN(attempt.result) && !Number.isNaN(attempt.memo)) {
       if (attempt.result === -1) {
         setAttemptText("DNF");
       } else if (attempt.result === -2) {
@@ -174,14 +175,14 @@ function AttemptInput({
     if (e.target.value.length < prevValue.length) {
       if (
         // For non-multi results we can erase DNF, DNS, and Unknown time
-        (event.format !== "multi" && attempt.result !== null && (attempt.result < 0 || attempt.result === C.maxTime)) ||
+        (event.format !== "multi" &&
+          !Number.isNaN(attempt.result) &&
+          (attempt.result < 0 || attempt.result === C.maxTime)) ||
         // For Multi format we can only erase a DNS, otherwise we must be erasing the time
         (event.format === "multi" && attempt.result === -2)
       ) {
         setAttempt({ ...attempt, result: 0 });
-        if (event.format === "multi") {
-          document.getElementById(`attempt_${attNumber}_solved`)?.focus();
-        }
+        if (event.format === "multi") document.getElementById(`attempt_${attNumber}_solved`)?.focus();
       } else {
         if (!forMemo && attemptText !== "") {
           const newAttText = attemptText.slice(0, -1);
@@ -236,7 +237,7 @@ function AttemptInput({
           setAttempt(newAttempt);
 
           // If the updated attempt is valid, it will get updated in useEffect anyways
-          if (newAttempt.result === null || newAttempt.memo === null) {
+          if (Number.isNaN(newAttempt.result) || Number.isNaN(newAttempt.memo)) {
             if (forMemo) setMemoText(newText);
             else setAttemptText(newText);
           }
@@ -250,7 +251,12 @@ function AttemptInput({
       e.preventDefault();
 
       // If it's not the memo input and there is a time limit that wasn't met, DNF the attempt
-      if (!forMemo && timeLimitCentiseconds && attempt.result !== null && attempt.result >= timeLimitCentiseconds) {
+      if (
+        !forMemo &&
+        timeLimitCentiseconds &&
+        !Number.isNaN(attempt.result) &&
+        attempt.result >= timeLimitCentiseconds
+      ) {
         dnfTheAttempt();
         focusNext();
       } else if (!forMemo && includeMemo) {
