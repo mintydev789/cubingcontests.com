@@ -1,8 +1,9 @@
 "use client";
 
+import pick from "lodash/pick";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAction } from "next-safe-action/hooks";
-import { useContext, useEffect, useRef, useState, useTransition } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import CreatorDetails from "~/app/components/CreatorDetails.tsx";
 import Form from "~/app/components/form/Form.tsx";
 import FormCheckbox from "~/app/components/form/FormCheckbox.tsx";
@@ -10,7 +11,7 @@ import FormCountrySelect from "~/app/components/form/FormCountrySelect.tsx";
 import FormTextInput from "~/app/components/form/FormTextInput.tsx";
 import { MainContext } from "~/helpers/contexts.ts";
 import type { Creator } from "~/helpers/types.ts";
-import { fetchWcaPerson, getActionError } from "~/helpers/utilityFunctions.ts";
+import { getActionError } from "~/helpers/utilityFunctions.ts";
 import type { PersonDto } from "~/helpers/validators/Person.ts";
 import type { PersonResponse } from "~/server/db/schema/persons.ts";
 import {
@@ -23,7 +24,7 @@ type Props = {
   personUnderEdit: PersonResponse | undefined;
   creator: Creator | undefined;
   creatorPerson: PersonResponse | undefined;
-  onSubmit: (person: PersonResponse, isNew?: boolean) => void;
+  onSubmit: (person: PersonResponse, { isNew }: { isNew: boolean }) => void;
   onCancel: (() => void) | undefined;
 };
 
@@ -33,7 +34,7 @@ function PersonForm({ personUnderEdit, creator, creatorPerson, onSubmit, onCance
   const { changeErrorMessages, changeSuccessMessage, resetMessages } = useContext(MainContext);
 
   const { executeAsync: createPerson, isPending: isCreating } = useAction(createPersonSF);
-  const { executeAsync: getOrCreateWcaPerson, isPending: isGettingOrCreatingWcaPerson } =
+  const { executeAsync: getOrCreatePersonByWcaId, isPending: isGettingOrCreatingWcaPerson } =
     useAction(getOrCreatePersonByWcaIdSF);
   const { executeAsync: updatePerson, isPending: isUpdating } = useAction(updatePersonSF);
   const [nextFocusTarget, setNextFocusTarget] = useState("");
@@ -42,12 +43,11 @@ function PersonForm({ personUnderEdit, creator, creatorPerson, onSubmit, onCance
   const [wcaId, setWcaId] = useState(personUnderEdit?.wcaId ?? "");
   const [hasWcaId, setHasWcaId] = useState<boolean>(personUnderEdit === undefined || !!personUnderEdit.wcaId);
   const [regionCode, setRegionCode] = useState(personUnderEdit?.regionCode ?? "NOT_SELECTED");
-  const [isFetchingWcaPerson, startFetchWcaPersonTransition] = useTransition();
   // This is set to true when the user is an admin, and they attempted to set a person with a duplicate name/country combination.
   // If the person is submitted again with no changes, the request will be sent with ignoreDuplicate=true.
   const isConfirmation = useRef(false);
 
-  const isPending = isCreating || isGettingOrCreatingWcaPerson || isUpdating || isFetchingWcaPerson;
+  const isPending = isCreating || isGettingOrCreatingWcaPerson || isUpdating;
 
   useEffect(() => {
     if (nextFocusTarget) {
@@ -94,7 +94,7 @@ function PersonForm({ personUnderEdit, creator, creatorPerson, onSubmit, onCance
 
     // Redirect if there is a redirect parameter in the URL, otherwise focus the first input
     if (!redirect) {
-      onSubmit(newPerson, !personUnderEdit);
+      onSubmit(newPerson, { isNew: !personUnderEdit });
 
       if (hasWcaId) setNextFocusTarget("wca_id");
       else setNextFocusTarget("full_name");
@@ -114,8 +114,10 @@ function PersonForm({ personUnderEdit, creator, creatorPerson, onSubmit, onCance
       if (!personUnderEdit) reset(true);
 
       if (newWcaId.length === 10) {
+        resetMessages();
+
         if (!personUnderEdit) {
-          const res = await getOrCreateWcaPerson({ wcaId: newWcaId });
+          const res = await getOrCreatePersonByWcaId({ wcaId: newWcaId });
 
           if (res.serverError || res.validationErrors) {
             changeErrorMessages([getActionError(res)]);
@@ -130,20 +132,13 @@ function PersonForm({ personUnderEdit, creator, creatorPerson, onSubmit, onCance
 
           setNextFocusTarget("wca_id");
         } else {
-          startFetchWcaPersonTransition(async () => {
-            const wcaPerson = await fetchWcaPerson(newWcaId);
-
-            if (!wcaPerson) {
-              changeErrorMessages([`Person with WCA ID ${newWcaId} not found`]);
-              setNextFocusTarget("wca_id");
-            } else {
-              resetMessages();
-              setName(wcaPerson.name);
-              setLocalizedName(wcaPerson.localizedName ?? "");
-              setRegionCode(wcaPerson.regionCode);
-              setNextFocusTarget("form_submit_button");
-            }
+          const res = await updatePerson({
+            id: personUnderEdit.id,
+            newPersonDto: { ...pick(personUnderEdit, "name", "localizedName", "regionCode"), wcaId: newWcaId },
           });
+
+          if (res.serverError || res.validationErrors) changeErrorMessages([getActionError(res)]);
+          else afterSubmit(res.data!);
         }
       }
     }
@@ -173,10 +168,9 @@ function PersonForm({ personUnderEdit, creator, creatorPerson, onSubmit, onCance
     <Form
       buttonText="Submit"
       onSubmit={handleSubmit}
-      showCancelButton={onCancel !== undefined}
       onCancel={onCancel}
       hideToasts // they're shown on the page itself
-      hideControls={hasWcaId && !personUnderEdit}
+      hideSubmitButton={hasWcaId}
       disableControls={isPending}
       isLoading={isCreating || isUpdating}
     >

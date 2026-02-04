@@ -51,6 +51,7 @@ const RoundsListValidator = z
   .nonempty({ error: "Please select at least one event" })
   .max(C.maxTotalRounds, { error: "You may not hold more than 30 rounds in total" });
 
+// TO-DO: THIS DOESN'T NEED TO BE A SERVER FUNCTION!!!!! BUT STILL DO VALIDATION IN A NORMAL FUNCTION.
 export const getContestSF = actionClient
   .metadata({})
   .inputSchema(

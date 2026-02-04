@@ -108,7 +108,6 @@ function ManageUsersScreen({ users: initUsers, userPersons: initUserPersons }: P
           buttonText="Submit"
           onSubmit={handleSubmit}
           hideToasts
-          showCancelButton
           onCancel={() => setUsername("")}
           isLoading={isUpdating}
         >

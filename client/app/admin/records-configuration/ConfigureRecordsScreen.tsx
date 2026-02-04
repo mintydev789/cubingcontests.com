@@ -146,14 +146,7 @@ function ConfigureRecordsScreen({ recordConfigs: initRecordConfigs }: Props) {
           Create Record Type
         </Button>
       ) : (
-        <Form
-          buttonText="Submit"
-          onSubmit={handleSubmit}
-          onCancel={cancel}
-          hideToasts
-          showCancelButton
-          isLoading={isPending}
-        >
+        <Form buttonText="Submit" onSubmit={handleSubmit} onCancel={cancel} hideToasts isLoading={isPending}>
           <div className="row mb-3">
             <div className="col">
               <FormSelect

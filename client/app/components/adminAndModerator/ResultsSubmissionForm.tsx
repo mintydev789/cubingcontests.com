@@ -249,7 +249,7 @@ function ResultsSubmissionForm({
         )}
       </div>
 
-      <Form hideControls>
+      <Form hideSubmitButton>
         {result && (
           <CreatorDetails creator={creator} person={creatorPerson} createdExternally={!!result.createdExternally} />
         )}

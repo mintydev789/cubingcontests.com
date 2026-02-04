@@ -7,9 +7,8 @@ type Props = {
   children: React.ReactNode;
   buttonText?: string;
   hideToasts?: boolean;
-  hideControls?: boolean;
   disableControls?: boolean;
-  showCancelButton?: boolean;
+  hideSubmitButton?: boolean;
   isLoading?: boolean;
   onSubmit?: () => void;
   onCancel?: () => void;
@@ -19,16 +18,14 @@ function Form({
   children,
   buttonText = "Submit",
   hideToasts,
-  hideControls,
   disableControls,
-  showCancelButton,
+  hideSubmitButton,
   isLoading,
   onSubmit,
   onCancel,
 }: Props) {
-  const showSubmitButton = !hideControls && buttonText;
+  const showSubmitButton = !hideSubmitButton && buttonText;
   if (showSubmitButton && !onSubmit) throw new Error("onSubmit cannot be undefined unless the submit button is hidden");
-  if (showCancelButton && !onCancel) throw new Error("onCancel cannot be undefined unless the cancel button is hidden");
 
   const controlsDisabled = disableControls || isLoading;
 
@@ -42,7 +39,7 @@ function Form({
 
       {children}
 
-      {(showSubmitButton || showCancelButton) && (
+      {(showSubmitButton || onCancel) && (
         <div className="d-flex mt-4 gap-3">
           {showSubmitButton && (
             <Button
@@ -55,7 +52,7 @@ function Form({
               {buttonText}
             </Button>
           )}
-          {showCancelButton && (
+          {onCancel && (
             <Button id="form_cancel_button" onClick={onCancel} disabled={controlsDisabled} className="btn-danger">
               Cancel
             </Button>

@@ -149,6 +149,8 @@ export const updatePersonSF = actionClient
       const [person] = await db.select().from(table).where(eq(table.id, id)).limit(1);
       if (!person) throw new RrActionError("Person with the provided ID not found");
       if (!canApprove && person.approved) throw new RrActionError("You may not edit a person who has been approved");
+      if (person.wcaId && person.wcaId !== newPersonDto.wcaId)
+        throw new RrActionError("Changing a person's WCA ID is not allowed");
       // TO-DO: WE MAY HAVE TO DO SOMETHING ABOUT PAST RECORDS SET BY THE COMPETITOR WHO IS CHANGING THEIR COUNTRY!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       if (person.regionCode !== newPersonDto.regionCode) {
         throw new RrActionError(

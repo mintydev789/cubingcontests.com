@@ -140,7 +140,7 @@ function ManageCompetitorsScreen({ persons: initPersons, users }: Props) {
     }
   };
 
-  const updateCompetitors = (person: PersonResponse | SelectPerson, isNew = false) => {
+  const updateCompetitors = (person: PersonResponse | SelectPerson, { isNew }: { isNew: boolean }) => {
     if (isNew) {
       setPersons([person, ...persons]);
     } else {
