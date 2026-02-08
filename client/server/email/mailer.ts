@@ -88,7 +88,7 @@ export function sendVerificationEmail(to: string, url: string) {
   send({
     templateFileName: "email-verification.hbs",
     context: {
-      ccUrl: baseUrl,
+      baseUrl,
       verificationLink: url,
     },
     callback: async (html) => {
@@ -106,7 +106,7 @@ export function sendResetPasswordEmail(to: string, url: string) {
   send({
     templateFileName: "password-reset-request.hbs",
     context: {
-      ccUrl: baseUrl,
+      baseUrl,
       passwordResetLink: url,
     },
     callback: async (html) => {
@@ -124,7 +124,7 @@ export function sendPasswordChangedEmail(to: string) {
   send({
     templateFileName: "password-changed.hbs",
     context: {
-      ccUrl: baseUrl,
+      baseUrl,
     },
     callback: async (html) => {
       await client.send({
@@ -145,7 +145,7 @@ export function sendRoleChangedEmail(
   send({
     templateFileName: "role-changed.hbs",
     context: {
-      ccUrl: baseUrl,
+      baseUrl,
       role,
       extra: canAccessModDashboard
         ? ` You can now access the <a href="${baseUrl}/mod">Moderator Dashboard</a> from the navigation bar.`
@@ -162,7 +162,7 @@ export function sendRoleChangedEmail(
   });
 }
 
-export function sendContestSubmittedNotification(recipients: string[], contest: SelectContest, creator: string) {
+export function sendContestSubmittedEmail(recipients: string[], contest: SelectContest, creator: string) {
   const urgent = getIsUrgent(new Date(contest.startDate));
 
   send({
@@ -172,7 +172,7 @@ export function sendContestSubmittedNotification(recipients: string[], contest: 
       wcaCompetition: contest.type === "wca-comp",
       contestName: contest.name,
       contestUrl: `${baseUrl}/competitions/${contest.competitionId}`,
-      ccUrl: baseUrl,
+      baseUrl,
       creator,
       startDate: contest.startDate.toDateString(),
       location: `${contest.city}, ${Countries.find((c) => c.code === contest.regionCode)?.name ?? "NOT FOUND"}`,
@@ -192,7 +192,7 @@ export function sendContestSubmittedNotification(recipients: string[], contest: 
   });
 }
 
-export function sendContestApprovedNotification(
+export function sendContestApprovedEmail(
   to: string,
   contest: Pick<SelectContest, "competitionId" | "name" | "shortName">,
 ) {
@@ -213,7 +213,7 @@ export function sendContestApprovedNotification(
   });
 }
 
-export function sendContestFinishedNotification(
+export function sendContestFinishedEmail(
   recipients: string[],
   contest: Pick<SelectContest, "competitionId" | "name" | "shortName" | "type" | "participants">,
   creator: string,
@@ -225,7 +225,7 @@ export function sendContestFinishedNotification(
     context: {
       contestName: contest.name,
       contestUrl: `${baseUrl}/competitions/${contest.competitionId}`,
-      ccUrl: baseUrl,
+      baseUrl,
       creator,
       duesAmount: getIsCompType(contest.type) && duesAmount >= 1 ? duesAmount.toFixed(2) : "",
       isUnofficialCompetition: contest.type === "comp",
@@ -243,7 +243,7 @@ export function sendContestFinishedNotification(
   });
 }
 
-export function sendContestPublishedNotification(
+export function sendContestPublishedEmail(
   to: string,
   contest: Pick<SelectContest, "competitionId" | "name" | "shortName">,
 ) {
@@ -264,7 +264,7 @@ export function sendContestPublishedNotification(
   });
 }
 
-export function sendVideoBasedResultSubmittedNotification(
+export function sendVideoBasedResultSubmittedEmail(
   to: string,
   event: SelectEvent,
   result: ResultResponse,
@@ -273,7 +273,7 @@ export function sendVideoBasedResultSubmittedNotification(
   send({
     templateFileName: "video-based-result-submitted.hbs",
     context: {
-      ccUrl: baseUrl,
+      baseUrl,
       eventName: event.name,
       roundFormat: roundFormats.find((rf) => rf.value !== "3" && rf.attempts === result.attempts.length)!.label,
       best:
@@ -297,6 +297,20 @@ export function sendVideoBasedResultSubmittedNotification(
         subject: `Result submitted: ${event.name}`,
         html,
       });
+    },
+  });
+}
+
+export function sendVideoBasedResultApprovedEmail(to: string, event: SelectEvent) {
+  send({
+    templateFileName: "video-based-result-approved.hbs",
+    context: {
+      baseUrl,
+      eventId: event.eventId,
+      eventName: event.name,
+    },
+    callback: async (html) => {
+      await client.send({ from: resultsEmail, to: [{ email: to }], subject: `Result approved`, html });
     },
   });
 }

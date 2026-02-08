@@ -24,15 +24,15 @@ import type { RecordConfigResponse } from "~/server/db/schema/record-configs.ts"
 import { type ResultResponse, resultsPublicCols, resultsTable, type SelectResult } from "~/server/db/schema/results.ts";
 import { type RoundResponse, roundsPublicCols, roundsTable, type SelectRound } from "~/server/db/schema/rounds.ts";
 import {
-  sendContestApprovedNotification,
-  sendContestFinishedNotification,
-  sendContestPublishedNotification,
-  sendContestSubmittedNotification,
+  sendContestApprovedEmail,
+  sendContestFinishedEmail,
+  sendContestPublishedEmail,
+  sendContestSubmittedEmail,
   sendEmail,
 } from "~/server/email/mailer.ts";
 import {
+  approvePersons,
   getContestParticipantIds,
-  getPersonExactMatchWcaId,
   getRecordConfigs,
   getUserHasAccessToContest,
   logMessage,
@@ -240,7 +240,7 @@ export const createContestSF = actionClient
           .returning();
 
         // Notify the organizers and admins
-        sendContestSubmittedNotification(
+        sendContestSubmittedEmail(
           organizerUsers.map((u) => u.email),
           createdContest,
           creatorPerson.name,
@@ -276,7 +276,7 @@ export const approveContestSF = actionClient
       await tx.update(personsTable).set({ approved: true }).where(inArray(personsTable.id, contest.organizerIds));
     });
 
-    sendContestApprovedNotification(creatorUser.email, contest);
+    sendContestApprovedEmail(creatorUser.email, contest);
   });
 
 export const finishContestSF = actionClient
@@ -373,7 +373,7 @@ export const finishContestSF = actionClient
         await tx.update(roundsTable).set({ open: false }).where(eq(roundsTable.competitionId, competitionId));
       });
 
-      sendContestFinishedNotification(
+      sendContestFinishedEmail(
         organizerUsers.map((u) => u.email),
         contest,
         creatorPerson?.name ?? "DELETED",
@@ -430,10 +430,12 @@ export const publishContestSF = actionClient
     if (!contest) throw new RrActionError(`Contest with ID ${competitionId} not found`);
     if (contest.state !== "finished") throw new RrActionError("Contest cannot be published");
 
-    const creatorUser = await db.query.users.findFirst({
-      columns: { email: true },
-      where: { id: contest.createdBy! },
-    });
+    const creatorUser = contest.createdBy
+      ? await db.query.users.findFirst({
+          columns: { email: true },
+          where: { id: contest.createdBy },
+        })
+      : undefined;
     const wcaPersons: { name: string; wcaId: string; countryIso2: string }[] = [];
 
     if (contest.type === "wca-comp") {
@@ -491,31 +493,12 @@ export const publishContestSF = actionClient
             await tx.update(personsTable).set(updatePersonObject).where(eq(personsTable.id, person.id));
           }
         } else {
-          for (const person of personsToBeApproved) {
-            if (!person.wcaId) {
-              const matchedPersonWcaId = await getPersonExactMatchWcaId(person);
-              if (matchedPersonWcaId) {
-                throw new RrActionError(
-                  `${person.name} has an exact name and country match with the WCA competitor with WCA ID ${matchedPersonWcaId}. Resolve this manually and publish the contest again.`,
-                );
-              }
-            }
-          }
-
-          await tx
-            .update(personsTable)
-            .set({ approved: true })
-            .where(
-              inArray(
-                personsTable.id,
-                personsToBeApproved.map((p) => p.id),
-              ),
-            );
+          await approvePersons(tx, personsToBeApproved);
         }
       }
     });
 
-    if (creatorUser) sendContestPublishedNotification(creatorUser.email, contest);
+    if (creatorUser) sendContestPublishedEmail(creatorUser.email, contest);
   });
 
 export const updateContestSF = actionClient

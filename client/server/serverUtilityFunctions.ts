@@ -455,8 +455,34 @@ export async function getRankings(
   return rankings!;
 }
 
+export async function approvePersons(
+  tx: DbTransactionType,
+  personsToBeApproved: Pick<SelectPerson, "id" | "name" | "regionCode" | "wcaId">[],
+) {
+  for (const person of personsToBeApproved) {
+    if (!person.wcaId) {
+      const matchedPersonWcaId = await getPersonExactMatchWcaId(person);
+      if (matchedPersonWcaId) {
+        throw new RrActionError(
+          `${person.name} has an exact name and country match with the WCA competitor with WCA ID ${matchedPersonWcaId}. Resolve this manually on the manage competitors page and try again.`,
+        );
+      }
+    }
+  }
+
+  await tx
+    .update(personsTable)
+    .set({ approved: true })
+    .where(
+      inArray(
+        personsTable.id,
+        personsToBeApproved.map((p) => p.id),
+      ),
+    );
+}
+
 export async function getPersonExactMatchWcaId(
-  person: SelectPerson,
+  person: Pick<SelectPerson, "name" | "regionCode">,
   ignoredWcaMatches: string[] = [],
 ): Promise<string | null> {
   const res = await fetch(`${C.wcaV0ApiBaseUrl}/search/users?persons_table=true&q=${person.name}`);

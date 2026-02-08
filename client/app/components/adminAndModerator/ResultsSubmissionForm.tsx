@@ -1,7 +1,7 @@
 "use client";
 
 import debounce from "lodash/debounce";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAction } from "next-safe-action/hooks";
 import { useCallback, useContext, useEffect, useState } from "react";
 import AttemptInput from "~/app/components/AttemptInput.tsx";
@@ -22,12 +22,15 @@ import { MainContext } from "~/helpers/contexts.ts";
 import { type RoundFormatObject, roundFormats } from "~/helpers/roundFormats.ts";
 import type { Creator, EventWrPair, InputPerson, RoundFormat } from "~/helpers/types.ts";
 import { getActionError, getBlankCompetitors, getIsAdmin, getRoundFormatOptions } from "~/helpers/utilityFunctions.ts";
-import type { VideoBasedResultDto } from "~/helpers/validators/Result.ts";
 import type { EventResponse } from "~/server/db/schema/events.ts";
 import type { PersonResponse } from "~/server/db/schema/persons.ts";
 import type { RecordConfigResponse } from "~/server/db/schema/record-configs.ts";
 import type { Attempt, SelectResult } from "~/server/db/schema/results.ts";
-import { createVideoBasedResultSF, getWrPairUpToDateSF } from "~/server/serverFunctions/resultServerFunctions.ts";
+import {
+  createVideoBasedResultSF,
+  getWrPairUpToDateSF,
+  updateVideoBasedResultSF,
+} from "~/server/serverFunctions/resultServerFunctions.ts";
 import Rules from "./video-based-results-rules.mdx";
 
 const allowedRoundFormats: RoundFormatObject[] = roundFormats.filter((rf) => rf.value !== "3");
@@ -36,8 +39,8 @@ type Props = {
   events: EventResponse[];
   recordConfigs: RecordConfigResponse[];
   result?: SelectResult; // only defined when editing an existing result
-  competitors?: PersonResponse[];
-  creator?: Creator;
+  participants?: PersonResponse[];
+  creator?: Creator | undefined;
   creatorPerson?: PersonResponse;
 };
 
@@ -45,13 +48,14 @@ function ResultsSubmissionForm({
   events,
   recordConfigs,
   result,
-  competitors: initCompetitors,
+  participants: initParticipants,
   creator,
   creatorPerson,
 }: Props) {
+  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { changeErrorMessages, changeSuccessMessage } = useContext(MainContext);
+  const { changeErrorMessages, changeSuccessMessage, resetMessages } = useContext(MainContext);
   const { data: session } = authClient.useSession();
 
   const {
@@ -60,6 +64,8 @@ function ResultsSubmissionForm({
     reset: resetGetEventWrPairsUpToDate,
   } = useAction(getWrPairUpToDateSF);
   const { executeAsync: createResult, isPending: isCreating } = useAction(createVideoBasedResultSF);
+  const { executeAsync: updateResult, isPending: isUpdating } = useAction(updateVideoBasedResultSF);
+  const [loadingId, setLoadingId] = useState<"UPDATING" | "APPROVING" | undefined>();
   const [eventWrPair, setEventWrPair] = useState<EventWrPair | undefined>();
   const [showRules, setShowRules] = useState(false);
   const [event, setEvent] = useState<EventResponse>(
@@ -68,8 +74,8 @@ function ResultsSubmissionForm({
   const [roundFormat, setRoundFormat] = useState<RoundFormatObject>(
     result ? allowedRoundFormats.find((rf) => rf.attempts === result.attempts.length)! : allowedRoundFormats[0],
   );
-  const [competitors, setCompetitors] = useState<InputPerson[]>(initCompetitors ?? [null]);
-  const [personNames, setPersonNames] = useState(initCompetitors?.map((p) => p.name) ?? [""]);
+  const [participants, setParticipants] = useState<InputPerson[]>(initParticipants ?? [null]);
+  const [personNames, setPersonNames] = useState(initParticipants?.map((p) => p.name) ?? [""]);
   const [keepCompetitors, setKeepCompetitors] = useState(false);
   const [attempts, setAttempts] = useState<Attempt[]>(result?.attempts ?? []);
   // null means the date is invalid; undefined means it's empty
@@ -94,7 +100,7 @@ function ResultsSubmissionForm({
   );
 
   const isAdmin = getIsAdmin(session?.user.role);
-  const isPending = isCreating || isPendingWrPairs;
+  const isPending = isCreating || isUpdating || isPendingWrPairs;
 
   useEffect(() => {
     if (!result) {
@@ -103,24 +109,24 @@ function ResultsSubmissionForm({
     }
   }, []);
 
-  // biome-ignore lint/correctness/noUnusedFunctionParameters: this is temporary
   const submitResult = async (approve = false) => {
-    if (competitors.some((p: InputPerson) => !p)) {
+    if (participants.some((p: InputPerson) => !p)) {
       changeErrorMessages(["Invalid person(s)"]);
       return;
     }
-
-    const newResultDto: VideoBasedResultDto = {
-      eventId: event.eventId,
-      date: date!,
-      personIds: competitors.map((p) => p!.id),
-      attempts,
-      videoLink: videoUnavailable ? "" : videoLink,
-      discussionLink: discussionLink || null,
-    };
+    resetMessages();
 
     if (!result) {
-      const res = await createResult({ newResultDto });
+      const res = await createResult({
+        newResultDto: {
+          eventId: event.eventId,
+          date: date!,
+          personIds: participants.map((p) => p!.id),
+          attempts,
+          videoLink: videoUnavailable ? "" : videoLink,
+          discussionLink: discussionLink || null,
+        },
+      });
 
       if (res.serverError || res.validationErrors) {
         changeErrorMessages([getActionError(res)]);
@@ -130,35 +136,32 @@ function ResultsSubmissionForm({
         setVideoLink("");
         setDiscussionLink("");
         resetAttempts();
+
         if (!keepCompetitors) {
           resetCompetitors();
           document.getElementById("Competitor_1")?.focus();
         }
       }
     } else {
-      throw new Error("NOT IMPLEMENTED!");
-      // const updateResultDto: IUpdateVideoBasedResultDto = {
-      //   date: newResult.date,
-      //   personIds: newResult.personIds,
-      //   attempts: newResult.attempts,
-      //   videoLink: newResult.videoLink,
-      //   discussionLink: newResult.discussionLink,
-      // };
-      // if (!approve) {
-      //   updateResultDto.unapproved = (submissionInfo as IAdminResultsSubmissionInfo).result.unapproved;
-      // }
+      setLoadingId(approve ? "APPROVING" : "UPDATING");
+      const res = await updateResult({
+        id: result.id,
+        newResultDto: {
+          date: date!,
+          attempts,
+          videoLink: videoUnavailable ? "" : videoLink,
+          discussionLink: discussionLink || null,
+        },
+        approve,
+      });
 
-      // const res = await myFetch.patch(
-      //   `/results/video-based/${resultId}`,
-      //   updateResultDto,
-      //   { loadingId, keepLoadingOnSuccess: true },
-      // );
-
-      // if (res.success) {
-      //   changeSuccessMessage(approve ? "Result successfully approved" : "Result successfully updated");
-
-      //   setTimeout(() => { window.location.href = "/admin/results" }, 1000);
-      // }
+      if (res.serverError || res.validationErrors) {
+        changeErrorMessages([getActionError(res)]);
+      } else {
+        changeSuccessMessage(approve ? "Result successfully approved" : "Result successfully updated");
+        setTimeout(() => router.push("/admin/results"), 1000);
+      }
+      setLoadingId(undefined);
     }
   };
 
@@ -172,7 +175,7 @@ function ResultsSubmissionForm({
 
   const resetCompetitors = (participants: number = event.participants) => {
     const [competitors, personNames] = getBlankCompetitors(participants);
-    setCompetitors(competitors);
+    setParticipants(competitors);
     setPersonNames(personNames);
   };
 
@@ -251,33 +254,43 @@ function ResultsSubmissionForm({
 
       <Form hideSubmitButton>
         {result && (
-          <CreatorDetails creator={creator} person={creatorPerson} createdExternally={!!result.createdExternally} />
+          <CreatorDetails
+            creator={creator}
+            person={creatorPerson}
+            createdExternally={Boolean(result.createdExternally)}
+          />
         )}
         <FormEventSelect
           events={events}
           eventId={event.eventId}
           setEventId={(val) => changeEvent(val)}
-          disabled={!!result}
+          disabled={result !== undefined}
         />
         <FormSelect
           title="Format"
           options={getRoundFormatOptions(allowedRoundFormats)}
           selected={roundFormat.value}
           setSelected={(val: RoundFormat) => changeRoundFormat(val)}
-          disabled={!!result}
+          disabled={result !== undefined}
           className="mb-3"
         />
         <FormPersonInputs
           title="Competitor"
           personNames={personNames}
           setPersonNames={setPersonNames}
-          persons={competitors}
-          setPersons={setCompetitors}
+          persons={participants}
+          setPersons={setParticipants}
           nextFocusTargetId={event.format !== "multi" ? "attempt_1" : "attempt_1_solved"}
           redirectToOnAddPerson={pathname}
           addNewPersonMode={isAdmin ? "default" : "disabled"}
+          disabled={result !== undefined}
         />
-        <FormCheckbox title="Don't clear competitors" selected={keepCompetitors} setSelected={setKeepCompetitors} />
+        <FormCheckbox
+          title="Don't clear competitors"
+          selected={keepCompetitors}
+          setSelected={setKeepCompetitors}
+          disabled={result !== undefined}
+        />
         {attempts.map((attempt: Attempt, i: number) => (
           <AttemptInput
             key={i}
@@ -350,7 +363,7 @@ function ResultsSubmissionForm({
           id="submit_button"
           onClick={() => submitResult()}
           disabled={isPending}
-          isLoading={isCreating}
+          isLoading={isCreating || loadingId === "UPDATING"}
           className="mt-3"
         >
           Submit
@@ -360,7 +373,7 @@ function ResultsSubmissionForm({
             id="approve_button"
             onClick={() => submitResult(true)}
             disabled={isPending}
-            // isLoading={isApproving}
+            isLoading={loadingId === "APPROVING"}
             className="btn-success ms-3 mt-3"
           >
             Submit and approve

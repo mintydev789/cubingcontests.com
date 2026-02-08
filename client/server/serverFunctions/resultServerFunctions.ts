@@ -19,12 +19,16 @@ import {
   getBestAndAverage,
   getDefaultAverageAttempts,
   getFormattedTime,
-  getIsAdmin,
   getMakesCutoff,
   getResultProceeds,
   getRoundDate,
 } from "~/helpers/utilityFunctions.ts";
-import { AttemptsValidator, ResultValidator, VideoBasedResultValidator } from "~/helpers/validators/Result.ts";
+import {
+  AttemptsValidator,
+  ResultValidator,
+  type VideoBasedResultDto,
+  VideoBasedResultValidator,
+} from "~/helpers/validators/Result.ts";
 import { contestsTable, type SelectContest } from "~/server/db/schema/contests.ts";
 import type { RoundResponse, SelectRound } from "~/server/db/schema/rounds.ts";
 import { type DbTransactionType, db } from "../db/provider.ts";
@@ -39,9 +43,11 @@ import {
   type SelectResult,
   resultsTable as table,
 } from "../db/schema/results.ts";
-import { sendVideoBasedResultSubmittedNotification } from "../email/mailer.ts";
+import { sendVideoBasedResultApprovedEmail, sendVideoBasedResultSubmittedEmail } from "../email/mailer.ts";
 import { actionClient, RrActionError } from "../safeAction.ts";
 import {
+  approvePersons,
+  checkUserPermissions,
   getContestParticipantIds,
   getRecordConfigs,
   getRecordResult,
@@ -287,7 +293,7 @@ export const updateContestResultSF = actionClient
         // Cancel future records, if the result got better
         if (updatedResult.regionalSingleRecord && updatedResult.best < result.best)
           await cancelFutureRecords(tx, updatedResult, "best", recordConfigs);
-        if (updatedResult.regionalAverageRecord && updatedResult.best < result.best)
+        if (updatedResult.regionalAverageRecord && updatedResult.average < result.average)
           await cancelFutureRecords(tx, updatedResult, "average", recordConfigs);
 
         // Set records that may have been prevented before, if the result got worse
@@ -401,14 +407,8 @@ export const createVideoBasedResultSF = actionClient
     }) => {
       logMessage("RR0016", `Creating video-based result: ${JSON.stringify(newResultDto)}`);
 
-      const isAdmin = getIsAdmin(user.role);
-
-      // Disallow admin-only features
-      if (!isAdmin) {
-        if (newResultDto.videoLink === "") throw new RrActionError("Please enter a video link");
-        if (newResultDto.attempts.some((a) => a.result === C.maxTime))
-          throw new RrActionError("You are not authorized to set unknown time");
-      }
+      const userCanApprove = await checkUserPermissions(user.id, { videoBasedResults: ["approve"] });
+      await validateVideoBasedResult(newResultDto, { userCanApprove });
 
       const eventPromise = db.query.events.findFirst({ where: { eventId: newResultDto.eventId } });
       const personsPromise = db.query.persons.findMany({ where: { id: { in: newResultDto.personIds } } });
@@ -425,19 +425,20 @@ export const createVideoBasedResultSF = actionClient
       const notFoundPersonId = newResultDto.personIds.find((pid) => !participants.some((p) => p.id === pid));
       if (notFoundPersonId) throw new RrActionError(`Person with ID ${notFoundPersonId} not found`);
       // Same check as in createContestResultSF
-      if (newResultDto.personIds.length !== event.participants)
+      if (newResultDto.personIds.length !== event.participants) {
         throw new RrActionError(
           `This event must have ${event.participants} participant${event.participants > 1 ? "s" : ""}`,
         );
+      }
 
       const roundFormat = roundFormats.find((rf) => rf.attempts === newResultDto.attempts.length && rf.value !== "3")!;
       const { best, average } = getBestAndAverage(newResultDto.attempts, event.format, roundFormat.value);
       const newResult: InsertResult = {
         ...newResultDto,
+        approved: userCanApprove, // approve automatically, if user has permission
         best,
         average,
         recordCategory: "video-based-results",
-        approved: isAdmin,
         createdBy: user.id,
       };
 
@@ -446,7 +447,7 @@ export const createVideoBasedResultSF = actionClient
       const createdResult = await db.transaction(async (tx) => {
         const [createdResult] = await tx.insert(table).values(newResult).returning(resultsPublicCols);
 
-        if (isAdmin) {
+        if (userCanApprove) {
           if (createdResult.regionalSingleRecord) await cancelFutureRecords(tx, createdResult, "best", recordConfigs);
           if (createdResult.regionalAverageRecord)
             await cancelFutureRecords(tx, createdResult, "average", recordConfigs);
@@ -455,11 +456,100 @@ export const createVideoBasedResultSF = actionClient
         return createdResult;
       });
 
-      if (!isAdmin) sendVideoBasedResultSubmittedNotification(user.email, event, createdResult, user.username);
+      if (!userCanApprove) sendVideoBasedResultSubmittedEmail(user.email, event, createdResult, user.username);
 
       return createdResult;
     },
   );
+
+export const updateVideoBasedResultSF = actionClient
+  .metadata({ permissions: { videoBasedResults: ["update", "approve"] } })
+  .inputSchema(
+    z.strictObject({
+      id: z.int(),
+      newResultDto: VideoBasedResultValidator.pick({
+        date: true,
+        attempts: true,
+        videoLink: true,
+        discussionLink: true,
+      }),
+      approve: z.boolean(),
+    }),
+  )
+  .action<ResultResponse>(async ({ parsedInput: { id, newResultDto, approve } }) => {
+    const result = await db.query.results.findFirst({ where: { id, competitionId: { isNull: true } } });
+    if (!result) throw new RrActionError(`Result with ID ${id} not found`);
+    if (result.approved) throw new RrActionError("Editing approved results is not allowed. Please contact a sysadmin.");
+
+    logMessage("RR0017", `Updating video-based result with ID ${id}: ${JSON.stringify(newResultDto)}`);
+
+    await validateVideoBasedResult(newResultDto, {
+      userCanApprove: true, // already checked in the action client permissions
+    });
+
+    const [event, recordConfigs] = await Promise.all([
+      db.query.events.findFirst({ where: { eventId: result.eventId } }),
+      getRecordConfigs("video-based-results"),
+    ]);
+
+    if (!event) throw new RrActionError(`Event with ID ${result.eventId} not found`);
+    if (newResultDto.attempts.length !== result.attempts.length)
+      throw new RrActionError("The number of attempts cannot be changed");
+
+    const roundFormat = roundFormats.find((rf) => rf.attempts === newResultDto.attempts.length && rf.value !== "3")!;
+    const { best, average } = getBestAndAverage(newResultDto.attempts, event.format, roundFormat.value);
+    const newResult: SelectResult = {
+      ...result,
+      date: newResultDto.date,
+      approved: approve,
+      attempts: newResultDto.attempts,
+      best,
+      average,
+      regionalSingleRecord: null,
+      regionalAverageRecord: null,
+      videoLink: newResultDto.videoLink,
+      discussionLink: newResultDto.discussionLink,
+    };
+
+    await setResultRecords(newResult, event, recordConfigs, { excludeResultId: id });
+
+    const updatedResult = await db.transaction(async (tx) => {
+      const [updatedResult] = await tx
+        .update(table)
+        .set({
+          date: newResult.date,
+          approved: newResult.approved,
+          attempts: newResult.attempts,
+          best: newResult.best,
+          average: newResult.average,
+          regionalSingleRecord: newResult.regionalSingleRecord,
+          regionalAverageRecord: newResult.regionalAverageRecord,
+          videoLink: newResult.videoLink,
+          discussionLink: newResult.discussionLink,
+        })
+        .where(eq(table.id, id))
+        .returning();
+
+      if (approve) {
+        if (updatedResult.regionalSingleRecord) await cancelFutureRecords(tx, updatedResult, "best", recordConfigs);
+        if (updatedResult.regionalAverageRecord) await cancelFutureRecords(tx, updatedResult, "average", recordConfigs);
+
+        const personsToBeApproved = await tx.query.persons.findMany({
+          where: { id: { in: result.personIds }, approved: false },
+        });
+        await approvePersons(tx, personsToBeApproved);
+
+        const creatorUser = result.createdBy
+          ? await tx.query.users.findFirst({ columns: { email: true }, where: { id: result.createdBy } })
+          : undefined;
+        if (creatorUser) sendVideoBasedResultApprovedEmail(creatorUser.email, event);
+      }
+
+      return updatedResult;
+    });
+
+    return updatedResult;
+  });
 
 async function setResultRecordsAndRegions(
   result: InsertResult,
@@ -932,4 +1022,16 @@ async function validateTimeLimitAndCutoff(
   }
 
   return outputAttempts;
+}
+
+async function validateVideoBasedResult(
+  newResultDto: Pick<VideoBasedResultDto, "attempts" | "videoLink">,
+  { userCanApprove }: { userCanApprove: boolean },
+) {
+  // Disallow video-based-result-moderator-only features
+  if (!userCanApprove) {
+    if (newResultDto.videoLink === "") throw new RrActionError("Please enter a video link");
+    if (newResultDto.attempts.some((a) => a.result === C.maxTime))
+      throw new RrActionError("You are not authorized to set unknown time");
+  }
 }
