@@ -153,7 +153,12 @@ export const createContestResultSF = actionClient
 
       const roundFormat = roundFormats.find((rf) => rf.value === round.format)!;
 
-      await validateTimeLimitAndCutoff(newResultDto.attempts, newResultDto.personIds, round, roundFormat.attempts);
+      newResultDto.attempts = await validateTimeLimitAndCutoff(
+        newResultDto.attempts,
+        newResultDto.personIds,
+        round,
+        roundFormat.attempts,
+      );
 
       const recordConfigs = await getRecordConfigs(contest.type === "meetup" ? "meetups" : "competitions");
       const { best, average } = getBestAndAverage(newResultDto.attempts, event.format, roundFormat.value);
@@ -246,7 +251,7 @@ export const updateContestResultSF = actionClient
       const recordConfigs = await getRecordConfigs(contest.type === "meetup" ? "meetups" : "competitions");
       const roundFormat = roundFormats.find((rf) => rf.value === round.format)!;
 
-      await validateTimeLimitAndCutoff(newAttempts, result.personIds, round, roundFormat.attempts);
+      newAttempts = await validateTimeLimitAndCutoff(newAttempts, result.personIds, round, roundFormat.attempts);
 
       const { best, average } = getBestAndAverage(newAttempts, event.format, roundFormat.value);
       const newResult: SelectResult = {
