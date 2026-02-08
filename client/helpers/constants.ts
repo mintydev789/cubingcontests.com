@@ -18,8 +18,8 @@ export const C = {
   maxConfirmationCodeAttempts: 3,
   minProceedNumber: 2,
   maxProceedPercentage: 75,
-  maxTotalRounds: 30, // this is hardcoded on the rules page
-  maxTotalMeetupRounds: 15, // this is hardcoded on the rules page
+  maxTotalEvents: 30, // this is hardcoded on the rules page
+  maxTotalMeetupEvents: 15, // this is hardcoded on the rules page
   maxPersonMatches: 6,
   maxRankings: 100_000,
   maxUsers: 5000,

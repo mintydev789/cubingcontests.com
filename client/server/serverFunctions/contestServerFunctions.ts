@@ -46,10 +46,7 @@ import {
 } from "../db/schema/contests.ts";
 import { actionClient, RrActionError } from "../safeAction.ts";
 
-const RoundsListValidator = z
-  .array(RoundValidator)
-  .nonempty({ error: "Please select at least one event" })
-  .max(C.maxTotalRounds, { error: "You may not hold more than 30 rounds in total" });
+const SELECT_AN_EVENT_MSG = "Please select at least one event";
 
 // TO-DO: THIS DOESN'T NEED TO BE A SERVER FUNCTION!!!!! BUT STILL DO VALIDATION IN A NORMAL FUNCTION.
 export const getContestSF = actionClient
@@ -191,7 +188,7 @@ export const createContestSF = actionClient
   .inputSchema(
     z.strictObject({
       newContestDto: ContestValidator,
-      rounds: RoundsListValidator,
+      rounds: z.array(RoundValidator).nonempty({ error: SELECT_AN_EVENT_MSG }),
     }),
   )
   .action(
@@ -507,7 +504,7 @@ export const updateContestSF = actionClient
     z.strictObject({
       originalCompetitionId: z.string().nonempty(),
       newContestDto: ContestValidator,
-      rounds: RoundsListValidator,
+      rounds: z.array(RoundValidator).nonempty({ error: SELECT_AN_EVENT_MSG }),
     }),
   )
   .action(
@@ -766,10 +763,12 @@ async function validateAndCleanUpContest(
   if (organizers.length !== contest.organizerIds.length)
     throw new RrActionError("One of the organizer persons was not found");
 
+  const totalEvents = new Set(rounds.map((r) => r.eventId)).size;
+
   // Validation of meetups
   if (contest.type === "meetup") {
-    if (rounds.length > C.maxTotalMeetupRounds)
-      throw new RrActionError("You may not hold more than 15 rounds in total at a meetup");
+    if (totalEvents > C.maxTotalMeetupEvents)
+      throw new RrActionError(`You may not hold more than ${C.maxTotalMeetupEvents} events at a meetup`);
 
     const correctTz = findTimezone(contest.latitudeMicrodegrees / 1000000, contest.longitudeMicrodegrees / 1000000)[0];
     if (contest.timezone !== correctTz)
@@ -777,6 +776,9 @@ async function validateAndCleanUpContest(
   }
   // Validation of WCA competitions and unofficial competitions
   else {
+    if (totalEvents > C.maxTotalEvents)
+      throw new RrActionError(`You may not hold more than ${C.maxTotalEvents} events at a competition`);
+
     for (const round of rounds) {
       const event = events.find((e) => e.eventId === round.eventId)!;
       if (contest.type === "wca-comp" && event.category === "wca") {
