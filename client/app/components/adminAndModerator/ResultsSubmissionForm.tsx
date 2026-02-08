@@ -157,11 +157,11 @@ function ResultsSubmissionForm({
 
       if (res.serverError || res.validationErrors) {
         changeErrorMessages([getActionError(res)]);
+        setLoadingId(undefined);
       } else {
         changeSuccessMessage(approve ? "Result successfully approved" : "Result successfully updated");
         setTimeout(() => router.push("/admin/results"), 1000);
       }
-      setLoadingId(undefined);
     }
   };
 
