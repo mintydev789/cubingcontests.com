@@ -237,4 +237,34 @@ the
 Logging into DB with admin privileges locally:
 
 docker exec -it supabase-db psql postgresql://supabase_admin:${POSTGRES_PASSWORD}@localhost:${POSTGRES_PORT}/${POSTGRES_DB}
+
+## Enabling Public Exports
+
+To enable automatic public exports that run at regular intervals, you have to set up a cron job with Supabase:
+
+1. Open Supabase Studio and go to Integrations -> Vault.
+2. Add secret "service_role_key" with the value being the same as SERVICE_ROLE_KEY in the .env file.
+3. Go to Storage and create a public bucket with the name "public_exports" with allowed MIME types "application/gzip".
+4. Go to SQL Editor and run the following query, making sure to replace <BASE_URL> with the public URL of your website (e.g. https://cubingcontests.com):
+
+```sql
+select
+  cron.schedule(
+    'Create public export',
+    '0 0 * * *', -- at 00:00 every night; you can set a different schedule, using the cron syntax
+    $$
+    select
+      net.http_post(
+        url:='<BASE_URL>/api/create-public-export',
+        headers:=jsonb_build_object(
+          'Content-type', 'application/json',
+          'Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'service_role_key')
+        ),
+        timeout_milliseconds:=5000
+      ) as request_id;
+    $$
+  );
+```
+
+**NOTE**: while this cron job will be visible in Integrations -> Cron, it cannot be edited due to the complex value of the authorization header, only activated and deactivated. To change the cron job, delete it and create it again following steps 3-4.
 -->

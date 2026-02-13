@@ -315,26 +315,26 @@ services:
       PG_META_DB_PASSWORD: ${POSTGRES_PASSWORD}
       CRYPTO_KEY: ${PG_META_CRYPTO_KEY}
 
-  functions:
-    container_name: supabase-edge-functions
-    image: supabase/edge-runtime:v1.69.25
-    networks:
-      - supabase
-    restart: unless-stopped
-    volumes:
-      - ./volumes/functions:/home/deno/functions:Z
-    depends_on:
-      analytics:
-        condition: service_healthy
-    environment:
-      JWT_SECRET: ${JWT_SECRET}
-      SUPABASE_URL: http://kong:8000
-      SUPABASE_ANON_KEY: ${ANON_KEY}
-      SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
-      SUPABASE_DB_URL: postgresql://postgres:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
-      # TODO: Allow configuring VERIFY_JWT per function. This PR might help: https://github.com/supabase/cli/pull/786
-      VERIFY_JWT: "${FUNCTIONS_VERIFY_JWT}"
-    command: ["start", "--main-service", "/home/deno/functions/main"]
+  # functions:
+  #   container_name: supabase-edge-functions
+  #   image: supabase/edge-runtime:v1.69.25
+  #   networks:
+  #     - supabase
+  #   restart: unless-stopped
+  #   volumes:
+  #     - ./volumes/functions:/home/deno/functions:Z
+  #   depends_on:
+  #     analytics:
+  #       condition: service_healthy
+  #   environment:
+  #     JWT_SECRET: ${JWT_SECRET}
+  #     SUPABASE_URL: http://kong:8000
+  #     SUPABASE_ANON_KEY: ${ANON_KEY}
+  #     SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
+  #     SUPABASE_DB_URL: postgresql://postgres:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
+  #     # TODO: Allow configuring VERIFY_JWT per function. This PR might help: https://github.com/supabase/cli/pull/786
+  #     VERIFY_JWT: "${FUNCTIONS_VERIFY_JWT}"
+  #   command: ["start", "--main-service", "/home/deno/functions/main"]
 
   analytics:
     container_name: supabase-analytics
@@ -437,6 +437,8 @@ services:
         "log_min_messages=fatal", # prevents Realtime polling queries from appearing in logs
         "-c",
         "cron.database_name=${POSTGRES_DB}", # custom addition to specify custom DB name (otherwise, pg_cron uses DB "postgres")
+        "-c",
+        "pg_net.database_name=${POSTGRES_DB}", # custom addition to specify custom DB name (otherwise, pg_net uses DB "postgres")
       ]
 
   vector:
@@ -491,8 +493,8 @@ services:
       CLUSTER_POSTGRES: true
       SECRET_KEY_BASE: ${SECRET_KEY_BASE}
       VAULT_ENC_KEY: ${VAULT_ENC_KEY}
-      # API_JWT_SECRET: ${JWT_SECRET}
-      # METRICS_JWT_SECRET: ${JWT_SECRET}
+      API_JWT_SECRET: ${JWT_SECRET}
+      METRICS_JWT_SECRET: ${JWT_SECRET}
       REGION: local
       ERL_AFLAGS: -proto_dist inet_tcp
       POOLER_TENANT_ID: ${POOLER_TENANT_ID}

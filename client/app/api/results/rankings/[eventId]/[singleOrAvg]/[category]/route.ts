@@ -11,10 +11,10 @@ const ParamsValidator = z.strictObject({
 });
 
 export async function GET(
-  request: NextRequest,
+  req: NextRequest,
   { params }: RouteContext<"/api/results/rankings/[eventId]/[singleOrAvg]/[category]">,
 ) {
-  const searchParams = request.nextUrl.searchParams;
+  const searchParams = req.nextUrl.searchParams;
   const parsedParams = ParamsValidator.safeParse(await params);
   if (!parsedParams.success) return new Response(`Validation error: ${parsedParams.error}`, { status: 400 });
   const { eventId, singleOrAvg, category: recordCategory } = parsedParams.data;
