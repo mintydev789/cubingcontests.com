@@ -2,7 +2,14 @@ import type fsType from "node:fs";
 import type { writeFile as writeFileType } from "node:fs/promises";
 import { eq, inArray, sql } from "drizzle-orm";
 import { eventsStub } from "~/__mocks__/stubs/eventsStub.ts";
-import { getDefaultAverageAttempts, getFormattedTime, getNameAndLocalizedName } from "~/helpers/utilityFunctions.ts";
+import { RoundFormatObject, roundFormats } from "~/helpers/roundFormats.ts";
+import {
+  compareAvgs,
+  compareSingles,
+  getDefaultAverageAttempts,
+  getFormattedTime,
+  getNameAndLocalizedName,
+} from "~/helpers/utilityFunctions.ts";
 import { WcaCompetitionValidator } from "~/helpers/validators/wca/WcaCompetition.ts";
 import type { auth as authType } from "~/server/auth.ts";
 import type { db as dbType } from "~/server/db/provider.ts";
@@ -14,7 +21,7 @@ import type { InsertContest } from "./server/db/schema/contests.ts";
 import { eventsTable, type SelectEvent } from "./server/db/schema/events.ts";
 import { type PersonResponse, personsTable } from "./server/db/schema/persons.ts";
 import { recordConfigsTable } from "./server/db/schema/record-configs.ts";
-import { resultsTable, type SelectResult } from "./server/db/schema/results.ts";
+import type { SelectResult } from "./server/db/schema/results.ts";
 
 // Used in tests too
 export const testUsers = [
@@ -61,6 +68,71 @@ const hashForCc =
 export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs") {
     const { db }: { db: typeof dbType } = await import("~/server/db/provider.ts");
+
+    if (process.env.DO_DB_CONSISTENCY_CHECKS === "true") {
+      console.log("Checking for inconsistencies in the DB...");
+
+      console.log("Checking for incorrectly ranked results...");
+
+      const results = await db.query.results.findMany({
+        columns: {
+          id: true,
+          eventId: true,
+          best: true,
+          average: true,
+          competitionId: true,
+          roundId: true,
+          ranking: true,
+        },
+        where: { roundId: { isNotNull: true } },
+        with: { round: { columns: { format: true } } },
+        orderBy: { roundId: "asc", ranking: "asc" },
+      });
+
+      const incorrectlyRankedResults: Partial<SelectResult>[] = [];
+
+      // Largely copied from setRankingAndProceedsValues()
+      let expectedRanking = 1;
+      let resultNumber = 1;
+      let prevResult = results[0];
+      let roundFormat = roundFormats.find((rf) => rf.value === results[0].round!.format)!;
+
+      for (let i = 0; i < results.length; i++) {
+        if (i > 0) {
+          if (results[i].roundId !== prevResult.roundId) {
+            expectedRanking = 1;
+            resultNumber = 1;
+            roundFormat = roundFormats.find((rf) => rf.value === results[i].round!.format)!;
+          } else {
+            resultNumber++;
+            // If the result is worse than the previous one, update the ranking
+            if (
+              (roundFormat.isAverage && compareAvgs(prevResult, results[i], true) < 0) ||
+              (!roundFormat.isAverage && compareSingles(prevResult, results[i]) < 0)
+            ) {
+              expectedRanking = resultNumber;
+            }
+            // If the result is better than the previous one, that means there is an inconsistency
+            else if (
+              (roundFormat.isAverage && compareAvgs(prevResult, results[i], true) > 0) ||
+              (!roundFormat.isAverage && compareSingles(prevResult, results[i]) > 0)
+            ) {
+              incorrectlyRankedResults.push(results[i]);
+            }
+          }
+
+          prevResult = results[i];
+        }
+
+        if (results[i].ranking !== expectedRanking) incorrectlyRankedResults.push(results[i]);
+      }
+
+      if (incorrectlyRankedResults.length > 0) {
+        console.log(
+          `Found the following results that were ranked incorrectly: ${JSON.stringify(incorrectlyRankedResults, null, 2)}`,
+        );
+      }
+    }
 
     // Migrate DB data, if env var is set
     if (process.env.MIGRATE_DB !== "true") return;

@@ -67,6 +67,16 @@ export const roundsStub: (InsertRound & { id: number })[] = [
     timeLimitCentiseconds: 10 * 60 * 100,
     timeLimitCumulativeRoundIds: [],
   },
+  {
+    competitionId: "TestCompMar2023",
+    eventId: "skewb",
+    roundNumber: 1,
+    roundTypeId: "f" as RoundType,
+    format: "a" as RoundFormat,
+    timeLimitCentiseconds: 1 * 60 * 100,
+    cutoffAttemptResult: 15 * 100,
+    cutoffNumberOfAttempts: 2,
+  },
   // 2026
   {
     competitionId: "TestComp2026",
@@ -243,6 +253,9 @@ export const testMeetupMar2023_333bf_2_person_relay_r1 = roundsStub.find(
 )!;
 export const testCompMar2023_333_oh_bld_team_relay_r1 = roundsStub.find(
   (r) => r.competitionId === "TestCompMar2023" && r.eventId === "333_oh_bld_team_relay",
+)!;
+export const testCompMar2023_skewb_r1 = roundsStub.find(
+  (r) => r.competitionId === "TestCompMar2023" && r.eventId === "skewb",
 )!;
 
 // 2026

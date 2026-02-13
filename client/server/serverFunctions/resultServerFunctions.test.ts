@@ -118,7 +118,7 @@ describe("createContestResultSF", () => {
         eventId: "333_oh_bld_team_relay",
         personIds: [gbPersonTomDillon.id, gbPersonSamMarsh.id, gbPersonJamesStone.id],
         attempts: [{ result: 10000 }, { result: 10100 }, { result: 10200 }],
-        competitionId: "TestComp2026",
+        competitionId: testComp2026_333_oh_bld_team_relay_r1.competitionId,
         roundId: testComp2026_333_oh_bld_team_relay_r1.id,
       },
     });
@@ -137,15 +137,14 @@ describe("createContestResultSF", () => {
   });
 
   it("creates non-record result that doesn't make cutoff", async () => {
-    const { id: roundId, cutoffAttemptResult } = testComp2026_333_oh_bld_team_relay_r1;
-    const firstAttempt = cutoffAttemptResult! + 1;
+    const firstAttempt = testComp2026_333_oh_bld_team_relay_r1.cutoffAttemptResult! + 1;
     const res = await createContestResultSF({
       newResultDto: {
         eventId: "333_oh_bld_team_relay",
         personIds: [gbPersonTomDillon.id, gbPersonSamMarsh.id, gbPersonJamesStone.id],
         attempts: [{ result: firstAttempt }, { result: 0 }, { result: 0 }],
-        competitionId: "TestComp2026",
-        roundId,
+        competitionId: testComp2026_333_oh_bld_team_relay_r1.competitionId,
+        roundId: testComp2026_333_oh_bld_team_relay_r1.id,
       },
     });
 
@@ -163,7 +162,7 @@ describe("createContestResultSF", () => {
           eventId: "333_oh_bld_team_relay",
           personIds: [1, 2, 1],
           attempts: [{ result: 1234 }],
-          competitionId: "TestCompJan2023",
+          competitionId: testCompJan2023_333_oh_bld_team_relay_r1.competitionId,
           roundId: testCompJan2023_333_oh_bld_team_relay_r1.id,
         },
       });
@@ -181,7 +180,7 @@ describe("createContestResultSF", () => {
           eventId: "333_oh_bld_team_relay",
           personIds: [1, 2, 3],
           attempts: [{ result: 0 }, { result: 0 }, { result: 0 }],
-          competitionId: "TestCompJan2023",
+          competitionId: testCompJan2023_333_oh_bld_team_relay_r1.competitionId,
           roundId: testCompJan2023_333_oh_bld_team_relay_r1.id,
         },
       });
@@ -199,7 +198,7 @@ describe("createContestResultSF", () => {
           eventId: "333_oh_bld_team_relay",
           personIds: [1, 2, 3],
           attempts: [{ result: -2 }, { result: -2 }, { result: -2 }],
-          competitionId: "TestCompJan2023",
+          competitionId: testCompJan2023_333_oh_bld_team_relay_r1.competitionId,
           roundId: testCompJan2023_333_oh_bld_team_relay_r1.id,
         },
       });
@@ -237,7 +236,7 @@ describe("createContestResultSF", () => {
           eventId: "333_oh_bld_team_relay",
           personIds: [1, 2, 3],
           attempts: [{ result: 10000 }, { result: 10100 }, { result: 10200 }],
-          competitionId: "TestComp2026",
+          competitionId: testComp2026_333_oh_bld_team_relay_r1.competitionId,
           roundId: testComp2026_333_oh_bld_team_relay_r1.id,
         },
       });
@@ -253,7 +252,7 @@ describe("createContestResultSF", () => {
           eventId,
           personIds: [1],
           attempts: [{ result: 10000 }, { result: 10100 }, { result: 10200 }],
-          competitionId: "TestComp2026",
+          competitionId: testComp2026_333_oh_bld_team_relay_r1.competitionId,
           roundId: testComp2026_333_oh_bld_team_relay_r1.id,
         },
       });
@@ -285,7 +284,7 @@ describe("createContestResultSF", () => {
           eventId: "333_oh_bld_team_relay",
           personIds: [1, 2, personId],
           attempts: [{ result: 10000 }, { result: 10100 }, { result: 10200 }],
-          competitionId: "TestComp2026",
+          competitionId: testComp2026_333_oh_bld_team_relay_r1.competitionId,
           roundId: testComp2026_333_oh_bld_team_relay_r1.id,
         },
       });
@@ -300,7 +299,7 @@ describe("createContestResultSF", () => {
           eventId: "333_oh_bld_team_relay",
           personIds: [1, 2],
           attempts: [{ result: 10000 }, { result: 10100 }, { result: 10200 }],
-          competitionId: "TestComp2026",
+          competitionId: testComp2026_333_oh_bld_team_relay_r1.competitionId,
           roundId: testComp2026_333_oh_bld_team_relay_r1.id,
         },
       });
@@ -340,7 +339,7 @@ describe("createContestResultSF", () => {
           eventId: "333_oh_bld_team_relay",
           personIds: resultFrom_333_oh_bld_team_relay_FirstRound!.personIds,
           attempts: [{ result: 10000 }, { result: 10100 }, { result: 10200 }],
-          competitionId: "TestCompJan2028",
+          competitionId: testCompJan2028_333_oh_bld_team_relay_r2.competitionId,
           roundId: testCompJan2028_333_oh_bld_team_relay_r2.id,
         },
       });
@@ -355,7 +354,7 @@ describe("createContestResultSF", () => {
           eventId: "333_oh_bld_team_relay",
           personIds: [1, 2, 3],
           attempts: [{ result: 10000 }],
-          competitionId: "TestComp2026",
+          competitionId: testComp2026_333_oh_bld_team_relay_r1.competitionId,
           roundId: testComp2026_333_oh_bld_team_relay_r1.id,
         },
       });
@@ -437,7 +436,7 @@ describe("createContestResultSF", () => {
       const eventId = "333_oh_bld_team_relay";
       const partialResult = {
         eventId,
-        competitionId: "TestComp2026",
+        competitionId: testComp2026_333_oh_bld_team_relay_r1.competitionId,
         roundId: testComp2026_333_oh_bld_team_relay_r1.id,
       };
 

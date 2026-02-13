@@ -6,15 +6,17 @@ import { redirect } from "next/navigation";
 import z from "zod";
 import { Continents, Countries } from "~/helpers/Countries.ts";
 import { C } from "~/helpers/constants.ts";
+import { roundFormats } from "~/helpers/roundFormats.ts";
 import type { Ranking, RecordsData } from "~/helpers/types/Rankings.ts";
 import { type RecordCategory, RecordCategoryValues, type RecordType, RecordTypeValues } from "~/helpers/types.ts";
-import { getIsAdmin } from "~/helpers/utilityFunctions.ts";
+import { compareAvgs, compareSingles, getIsAdmin, getResultProceeds } from "~/helpers/utilityFunctions.ts";
 import { type DbTransactionType, db } from "~/server/db/provider.ts";
 import { type ContestResponse, contestsTable } from "~/server/db/schema/contests.ts";
 import { type EventResponse, eventsPublicCols, eventsTable, type SelectEvent } from "~/server/db/schema/events.ts";
 import { type PersonResponse, personsTable, type SelectPerson } from "~/server/db/schema/persons.ts";
 import { recordConfigsPublicCols, recordConfigsTable } from "~/server/db/schema/record-configs.ts";
-import { resultsTable, type SelectResult } from "~/server/db/schema/results.ts";
+import { type ResultResponse, resultsTable, type SelectResult } from "~/server/db/schema/results.ts";
+import type { RoundResponse } from "~/server/db/schema/rounds.ts";
 import { type LogCode, logger } from "~/server/logger.ts";
 import { RrActionError } from "~/server/safeAction.ts";
 import { getDateOnly, getDefaultAverageAttempts, getNameAndLocalizedName } from "../helpers/utilityFunctions.ts";
@@ -453,6 +455,40 @@ export async function getRankings(
   }
 
   return rankings!;
+}
+
+export async function setRankingAndProceedsValues(
+  tx: DbTransactionType,
+  results: ResultResponse[],
+  round: RoundResponse,
+) {
+  const roundFormat = roundFormats.find((rf) => rf.value === round.format)!;
+  const sortedResults = results.sort(roundFormat.isAverage ? (a, b) => compareAvgs(a, b, true) : compareSingles);
+  let prevResult = sortedResults[0];
+  let ranking = 1;
+
+  for (let i = 0; i < sortedResults.length; i++) {
+    if (i > 0) {
+      // If the previous result was not tied with this one, increase ranking
+      if (
+        (roundFormat.isAverage && compareAvgs(prevResult, sortedResults[i], true) < 0) ||
+        (!roundFormat.isAverage && compareSingles(prevResult, sortedResults[i]) < 0)
+      ) {
+        ranking = i + 1;
+      }
+
+      prevResult = sortedResults[i];
+    }
+
+    // Set proceeds if it's a non-final round and the result proceeds to the next round
+    const proceeds = round.proceedValue
+      ? getResultProceeds({ ...sortedResults[i], ranking }, round, roundFormat, sortedResults)
+      : null;
+
+    // Update the result in the DB, if something changed
+    if (ranking !== sortedResults[i].ranking || proceeds !== sortedResults[i].proceeds)
+      await tx.update(resultsTable).set({ ranking, proceeds }).where(eq(resultsTable.id, sortedResults[i].id));
+  }
 }
 
 export async function approvePersons(

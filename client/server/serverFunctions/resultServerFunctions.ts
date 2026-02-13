@@ -20,7 +20,6 @@ import {
   getDefaultAverageAttempts,
   getFormattedTime,
   getMakesCutoff,
-  getResultProceeds,
   getRoundDate,
 } from "~/helpers/utilityFunctions.ts";
 import {
@@ -30,7 +29,7 @@ import {
   VideoBasedResultValidator,
 } from "~/helpers/validators/Result.ts";
 import { contestsTable, type SelectContest } from "~/server/db/schema/contests.ts";
-import type { RoundResponse, SelectRound } from "~/server/db/schema/rounds.ts";
+import type { SelectRound } from "~/server/db/schema/rounds.ts";
 import { type DbTransactionType, db } from "../db/provider.ts";
 import type { EventResponse, SelectEvent } from "../db/schema/events.ts";
 import type { SelectPerson } from "../db/schema/persons.ts";
@@ -53,6 +52,7 @@ import {
   getRecordResult,
   getUserHasAccessToContest,
   logMessage,
+  setRankingAndProceedsValues,
 } from "../serverUtilityFunctions.ts";
 
 const OLD_RESULT_WITH_RECORD_VALIDATION_ERROR_MSG =
@@ -935,34 +935,6 @@ async function cancelFutureRecords(
       const message = `CANCELLED ${r.eventId} ${type} ${nrLabel}: ${r[bestOrAverage]} (country code ${r.regionCode})`;
       logMessage("RR0026", message);
     }
-  }
-}
-
-async function setRankingAndProceedsValues(tx: DbTransactionType, results: ResultResponse[], round: RoundResponse) {
-  const roundFormat = roundFormats.find((rf) => rf.value === round.format)!;
-  const sortedResults = results.sort(roundFormat.isAverage ? (a, b) => compareAvgs(a, b, true) : compareSingles);
-  let prevResult = sortedResults[0];
-  let ranking = 1;
-
-  for (let i = 0; i < sortedResults.length; i++) {
-    // If the previous result was not tied with this one, increase ranking
-    if (
-      i > 0 &&
-      ((roundFormat.isAverage && compareAvgs(prevResult, sortedResults[i]) < 0) ||
-        (!roundFormat.isAverage && compareSingles(prevResult, sortedResults[i]) < 0))
-    ) {
-      ranking = i + 1;
-    }
-
-    prevResult = sortedResults[i];
-    // Set proceeds if it's a non-final round and the result proceeds to the next round
-    const proceeds = round.proceedValue
-      ? getResultProceeds({ ...sortedResults[i], ranking }, round, roundFormat, sortedResults)
-      : null;
-
-    // Update the result in the DB, if something changed
-    if (ranking !== sortedResults[i].ranking || proceeds !== sortedResults[i].proceeds)
-      await tx.update(table).set({ ranking, proceeds }).where(eq(table.id, sortedResults[i].id));
   }
 }
 
