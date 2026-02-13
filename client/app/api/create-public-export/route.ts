@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
   if (!token || token !== process.env.SERVICE_ROLE_KEY)
     return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-  throw new Error("NOT IMPLEMENTED!")
+  throw new Error("NOT IMPLEMENTED!");
 
   // const storageClient = new StorageClient(`https://supabase.${process.env.PROD_HOSTNAME}/storage/v1`, {
   //   apikey: process.env.SERVICE_ROLE_KEY,
