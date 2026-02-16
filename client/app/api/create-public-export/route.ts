@@ -6,8 +6,12 @@ export async function POST(req: NextRequest) {
     console.error("SERVICE_ROLE_KEY environment variable not set!");
     return Response.json({ error: "Internal Server Error" }, { status: 500 });
   }
-  if (!process.env.PROD_HOSTNAME) {
-    console.error("PROD_HOSTNAME environment variable not set!");
+  if (!process.env.SUPABASE_STORAGE_URL) {
+    console.error("SUPABASE_STORAGE_URL environment variable not set!");
+    return Response.json({ error: "Internal Server Error" }, { status: 500 });
+  }
+  if (!process.env.PUBLIC_EXPORTS_BUCKET_NAME) {
+    console.error("PUBLIC_EXPORTS_BUCKET_NAME environment variable not set!");
     return Response.json({ error: "Internal Server Error" }, { status: 500 });
   }
 
@@ -15,15 +19,23 @@ export async function POST(req: NextRequest) {
   if (!token || token !== process.env.SERVICE_ROLE_KEY)
     return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-  throw new Error("NOT IMPLEMENTED!");
+  const storageClient = new StorageClient(process.env.SUPABASE_STORAGE_URL, {
+    apikey: process.env.SERVICE_ROLE_KEY,
+    Authorization: `Bearer ${process.env.SERVICE_ROLE_KEY}`,
+  });
 
-  // const storageClient = new StorageClient(`https://supabase.${process.env.PROD_HOSTNAME}/storage/v1`, {
-  //   apikey: process.env.SERVICE_ROLE_KEY,
-  //   Authorization: `Bearer ${process.env.SERVICE_ROLE_KEY}`,
-  // });
+  const { data, error } = await storageClient.listBuckets();
+  if (error) return Response.json({ error: error.message }, { status: 500 });
 
-  // // TO-DO: MAKE THIS USE ENV VAR FOR THE BUCKET!!!
-  // // await storageClient.from("public_exports").upload("avatar.png", file);
+  if (!data.some((bucket) => bucket.name === process.env.PUBLIC_EXPORTS_BUCKET_NAME)) {
+    await storageClient.createBucket(process.env.PUBLIC_EXPORTS_BUCKET_NAME, {
+      public: true,
+      allowedMimeTypes: ["application/gzip"],
+    });
+    console.log(`Created bucket "${process.env.PUBLIC_EXPORTS_BUCKET_NAME}"`);
+  }
 
-  // return Response.json({}, { status: 200 });
+  // await storageClient.from(process.env.PUBLIC_BUCKET_NAME).upload("avatar.png", file);
+
+  return Response.json({}, { status: 200 });
 }
