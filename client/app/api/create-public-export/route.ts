@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
   });
 
   const { data, error } = await storageClient.listBuckets();
-  if (error) return Response.json({ error: error.message }, { status: 500 });
+  if (error) return Response.json({ error: `Error while fetching list of buckets: ${error.message}` }, { status: 500 });
 
   if (!data.some((bucket) => bucket.name === process.env.PUBLIC_EXPORTS_BUCKET_NAME)) {
     await storageClient.createBucket(process.env.PUBLIC_EXPORTS_BUCKET_NAME, {
@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
   );
   zip.file("persons.csv", personsCsv);
 
-  const contestsFilter = notInArray(contestsTable.state, ["created", "removed"])
+  const contestsFilter = notInArray(contestsTable.state, ["created", "removed"]);
   const contestsCsv = generateCsv(
     await db
       .select({
@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
   const resultsCsv = generateCsv(
     await db
       .select({ ...resultsPublicCols, createdAt: resultsTable.createdAt, updatedAt: resultsTable.updatedAt })
-      .from(resultsTable)
+      .from(resultsTable),
   );
   zip.file("results.csv", resultsCsv);
 
@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
   const { error: error2 } = await storageClient
     .from(process.env.PUBLIC_EXPORTS_BUCKET_NAME)
     .upload(`export_${format(new Date(), "yyyy-MM-dd_HH-mm-ss")}.zip`, blob);
-  if (error2) return Response.json({ error: error2.message }, { status: 500 });
+  if (error2) return Response.json({ error: `Error while uploading file: ${error2.message}` }, { status: 500 });
 
   return Response.json({}, { status: 200 });
 }
