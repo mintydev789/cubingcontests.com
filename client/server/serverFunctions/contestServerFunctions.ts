@@ -60,15 +60,7 @@ export const getContestSF = actionClient
   .action<{
     contest: Pick<
       SelectContest,
-      | "competitionId"
-      | "state"
-      | "name"
-      | "shortName"
-      | "type"
-      | "startDate"
-      | "organizerIds"
-      | "queuePosition"
-      | "schedule"
+      "competitionId" | "state" | "name" | "shortName" | "type" | "startDate" | "organizerIds" | "schedule"
     >;
     events: EventResponse[];
     rounds: RoundResponse[];
@@ -85,7 +77,6 @@ export const getContestSF = actionClient
         type: true,
         startDate: true,
         organizerIds: true,
-        queuePosition: true,
         schedule: true,
       },
       where: { competitionId },

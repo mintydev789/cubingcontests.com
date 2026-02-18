@@ -1,7 +1,5 @@
 "use client";
 
-import { faMinus, faPlus } from "@fortawesome/free-solid-svg-icons";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { usePathname } from "next/navigation";
 import { useAction } from "next-safe-action/hooks";
 import { useContext, useEffect, useMemo, useState } from "react";
@@ -45,7 +43,7 @@ import {
 } from "~/server/serverFunctions/resultServerFunctions.ts";
 
 type Props = {
-  contest: Pick<SelectContest, "competitionId" | "shortName" | "type" | "startDate" | "queuePosition" | "schedule">;
+  contest: Pick<SelectContest, "competitionId" | "shortName" | "type" | "startDate" | "schedule">;
   eventId: string;
   events: EventResponse[];
   rounds: RoundResponse[];
@@ -84,8 +82,7 @@ function DataEntryScreen({
   const [personNames, setPersonNames] = useState(new Array(currEvent.participants).fill(""));
   const [attempts, setAttempts] = useState<Attempt[]>(new Array(roundFormat.attempts).fill({ result: 0 }));
   const [persons, setPersons] = useState<PersonResponse[]>(initPersons);
-  // biome-ignore lint/correctness/noUnusedVariables: this is temporary
-  const [queuePosition, setQueuePosition] = useState(contest.queuePosition);
+  // const [queuePosition, setQueuePosition] = useState(contest.queuePosition);
   const [loadingId, setLoadingId] = useState("");
 
   const roundOptions = useMemo<MultiChoiceOption[]>(
@@ -237,17 +234,15 @@ function DataEntryScreen({
     setLoadingId("");
   };
 
-  // biome-ignore lint/correctness/noUnusedFunctionParameters: this is temporary
-  const updateQueuePosition = async (mode: "decrement" | "increment" | "reset") => {
-    throw new Error("NOT IMPLEMENTED!");
-    // const res = await myFetch.patch(
-    //   `/competitions/queue-${mode}/${contest.competitionId}`,
-    //   {},
-    //   { loadingId: `queue_${mode}_button` },
-    // );
+  // const updateQueuePosition = async (mode: "decrement" | "increment" | "reset") => {
+  //   const res = await myFetch.patch(
+  //     `/competitions/queue-${mode}/${contest.competitionId}`,
+  //     {},
+  //     { loadingId: `queue_${mode}_button` },
+  //   );
 
-    // if (res.success) setQueuePosition(res.data);
-  };
+  //   if (res.success) setQueuePosition(res.data);
+  // };
 
   const openNextRound = async () => {
     const res = await openRound({ competitionId: contest.competitionId, eventId });
@@ -367,7 +362,7 @@ function DataEntryScreen({
                 Submit Mock Result
               </Button>
             )}
-            {contest.queuePosition !== null && false && (
+            {/* {contest.queuePosition !== null && false && (
               <>
                 <p className="mt-4 mb-2">Current position in queue:</p>
                 <div className="d-flex gap-3 align-items-center">
@@ -395,7 +390,7 @@ function DataEntryScreen({
                   </Button>
                 </div>
               </>
-            )}
+            )} */}
           </div>
         </div>
 

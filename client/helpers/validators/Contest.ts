@@ -145,7 +145,6 @@ export const ContestValidator = z
     description: z.string(),
     competitorLimit: z.int().min(C.minCompetitorLimit).optional(),
     // participants: z.int().default(0),
-    // queuePosition: z.int().optional(),
     schedule: ScheduleValidator.optional(),
     // createdBy: z.string().optional(),
   })

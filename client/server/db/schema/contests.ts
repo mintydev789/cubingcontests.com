@@ -61,10 +61,11 @@ export type InsertContest = typeof contestsTable.$inferInsert;
 export type SelectContest = typeof contestsTable.$inferSelect;
 
 const {
-  schedule: _, // technically not a private column, but it's not needed most of the time
-  createdBy: _1,
-  createdAt: _2,
-  updatedAt: _3,
+  queuePosition: _,
+  schedule: _1, // technically not a private column, but it's not needed most of the time
+  createdBy: _2,
+  createdAt: _3,
+  updatedAt: _4,
   ...contestsPublicCols
 } = getColumns(contestsTable);
 export { contestsPublicCols };

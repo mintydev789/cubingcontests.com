@@ -97,8 +97,7 @@ function ContestForm({
   const { executeAsync: deleteContest, isPending: isDeleting } = useAction(deleteContestSF);
   const [activeTab, setActiveTab] = useState("details");
   const [detailsImported, setDetailsImported] = useState(mode === "edit" && contest?.type === "wca-comp");
-  // biome-ignore lint/correctness/noUnusedVariables: this is temporary
-  const [queueEnabled, setQueueEnabled] = useState(contest?.queuePosition !== undefined);
+  // const [queueEnabled, setQueueEnabled] = useState(contest?.queuePosition !== undefined);
 
   const [competitionId, setCompetitionId] = useState(contest?.competitionId ?? "");
   const [isPendingWcaCompDetails, startWcaCompDetailsTransition] = useTransition();
@@ -472,16 +471,15 @@ function ContestForm({
     // });
   };
 
-  const enableQueue = async () => {
-    throw new Error("NOT IMPLEMENTED");
-    // const res = await myFetch.patch(
-    //   `/competitions/queue-reset/${contest!.competitionId}`,
-    //   {},
-    //   { loadingId: "enable_queue_button" },
-    // );
+  // const enableQueue = async () => {
+  //   const res = await myFetch.patch(
+  //     `/competitions/queue-reset/${contest!.competitionId}`,
+  //     {},
+  //     { loadingId: "enable_queue_button" },
+  //   );
 
-    // if (res.success) setQueueEnabled(true);
-  };
+  //   if (res.success) setQueueEnabled(true);
+  // };
 
   const createAuthToken = async () => {
     throw new Error("NOT IMPLEMENTED");
@@ -600,17 +598,18 @@ function ContestForm({
                   <div className="d-flex gap-1 align-items-center">
                     <Button
                       id="enable_queue_button"
-                      onClick={enableQueue}
+                      // onClick={enableQueue}
                       // loadingId={loadingId}
                       // disabled={isPending || !["approved", "ongoing"].includes(contest.state) || queueEnabled}
                       disabled
                       className="btn-secondary"
                     >
-                      {queueEnabled ? "Queue Enabled" : "Enable Queue"}
+                      {/* {queueEnabled ? "Queue Enabled" : "Enable Queue"} */}
+                      Enable Queue
                     </Button>
                     <Tooltip
                       id="queue_tooltip"
-                      text="(TEMPORARILY DISABLED) This can be used for contests where there are not enough solving stations. In such cases random scrambles must be used for every competitor."
+                      text="(DISABLED) This can be used for contests where there are not enough solving stations. In such cases random scrambles must be used for every competitor."
                     />
                   </div>
                   <div className="d-flex gap-1 align-items-center">

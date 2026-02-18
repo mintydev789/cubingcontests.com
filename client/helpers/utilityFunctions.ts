@@ -564,3 +564,19 @@ export function getRoundDate(round: RoundResponse, contest: Pick<SelectContest, 
     return contest.startDate;
   }
 }
+
+export function generateCsv(data: any[]): string {
+  const headers = Object.keys(data[0]);
+
+  const dataRows = data.map((item) =>
+    headers
+      .map((key) => {
+        const val = item[key] instanceof Date ? item[key].toISOString() : String(item[key]);
+        // Escape special characters
+        return /("|,|\n|\r)/.test(val) ? `"${val.replace(/"/g, '""')}"` : val;
+      })
+      .join(","),
+  );
+
+  return [headers.join(","), ...dataRows].join("\n");
+}
