@@ -27,6 +27,6 @@ tar -czf "$backup_name.tar.gz" $backup_name &&
 rm -rf $backup_name &&
 mkdir -p $HOME/backups &&
 gpg --symmetric --cipher-algo AES256 -o "$HOME/backups/$backup_name.tar.gz.gpg" "./$backup_name.tar.gz" &&
-rm -f .$backup_name.tar.gz &&
+rm -f $backup_name.tar.gz &&
 
 echo -e "\n${cyan}Done! Backup saved as $HOME/backups/$backup_name.tar.gz.gpg${nc}"
