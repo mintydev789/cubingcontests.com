@@ -47,7 +47,7 @@ export const resultsTable = rrSchema.table(
     proceeds: boolean(), // only used for contest results from non-final rounds
     videoLink: text(), // only used for video-based results
     discussionLink: text(), // only used for video-based results (also optional for those)
-    // Before the "Big Update", createdExternally wasn't a column, and createdBy was only set for video-based results
+    // Before v0.13, createdExternally wasn't a column, and createdBy was only set for video-based results
     createdBy: text().references(() => usersTable.id, { onDelete: "set null" }),
     createdExternally: boolean().default(false).notNull(),
     ...tableTimestamps,

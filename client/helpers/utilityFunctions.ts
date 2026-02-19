@@ -571,7 +571,13 @@ export function generateCsv(data: any[]): string {
   const dataRows = data.map((item) =>
     headers
       .map((key) => {
-        const val = item[key] instanceof Date ? item[key].toISOString() : String(item[key]);
+        const val =
+          item[key] instanceof Date
+            ? item[key].toISOString()
+            : typeof item[key] === "object"
+              ? JSON.stringify(item[key])
+              : String(item[key]);
+
         // Escape special characters
         return /("|,|\n|\r)/.test(val) ? `"${val.replace(/"/g, '""')}"` : val;
       })

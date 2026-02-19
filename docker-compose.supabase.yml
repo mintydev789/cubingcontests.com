@@ -435,10 +435,11 @@ services:
         "config_file=/etc/postgresql/postgresql.conf",
         "-c",
         "log_min_messages=fatal", # prevents Realtime polling queries from appearing in logs
+        # Custom additions to specify custom DB name for pg_cron and pg_net
         "-c",
-        "cron.database_name=${POSTGRES_DB}", # custom addition to specify custom DB name (otherwise, pg_cron uses DB "postgres")
+        "cron.database_name=${POSTGRES_DB}",
         "-c",
-        "pg_net.database_name=${POSTGRES_DB}", # custom addition to specify custom DB name (otherwise, pg_net uses DB "postgres")
+        "pg_net.database_name=${POSTGRES_DB}",
       ]
 
   vector:
