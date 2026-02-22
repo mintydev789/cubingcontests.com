@@ -101,7 +101,7 @@ function AttemptInput({
 
           setSolved(Number(newSolved));
           setAttempted(Number(newAttempted));
-          setAttemptText(newAttText === "24000000" ? "Unknown" : newAttText);
+          setAttemptText(newAttText === C.maxTimeHumanReadable ? "Unknown" : newAttText);
         }
 
         // Memo time
@@ -213,8 +213,7 @@ function AttemptInput({
             setAttemptText("Unknown");
             setMemoText("");
           } else {
-            // C.maxTime is 24 hours
-            setAttempt(getAttempt(attempt, event, "24000000", { solved, attempted }));
+            setAttempt(getAttempt(attempt, event, C.maxTimeHumanReadable, { solved, attempted }));
           }
 
           focusNext();

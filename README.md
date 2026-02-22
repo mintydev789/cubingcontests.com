@@ -255,7 +255,7 @@ select
     $$
     select
       net.http_post(
-        url:=(select decrypted_secret from vault.decrypted_secrets where name = 'base_url') || '/api/create-public-export',
+        url:=(select decrypted_secret from vault.decrypted_secrets where name = 'base_url') || '/api/export/create-public-export',
         headers:=jsonb_build_object(
           'Content-type', 'application/json',
           'Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'service_role_key')
@@ -268,5 +268,11 @@ select
 
 **NOTE**: while this cron job will be visible in Integrations -> Cron, it cannot be edited directly, due to the complex value of the authorization header; only activated and deactivated. To change the cron job, delete it and create it again following step 4.
 
-To test this with test-prod.sh, use http://rr-nextjs:3000 as the base URL value in Supabase Vault, temporarily add "shared" network to the supabase-db container in the Supabase Docker Compose file, change the value of SUPABASE_PUBLIC_URL to http://supabase-kong:8000 in the .env file and restart the supabase-db container. For debugging you can look at the history of cron job runs in Integrations -> Cron and at the contents of the net schema in Table Editor.
+To test this with test-prod.sh, use http://rr-nextjs:3000 as the base URL value in Supabase Vault, temporarily add "shared" network to the supabase-db container in the Supabase Docker Compose file, change the value of SUPABASE_PUBLIC_URL to http://supabase-kong:8000 in the .env file and restart the supabase-db container. You can also test it with the normal local dev environment using this command (make sure to replace <SERVICE_ROLE_KEY> with the value in your .env file):
+
+```sh
+curl -X POST -H "Authorization: Bearer <SERVICE_ROLE_KEY>" http://localhost:3000/api/export/create-public-export
+```
+
+For debugging you can look at the history of cron job runs in Integrations -> Cron and at the contents of the net schema in Table Editor.
 -->

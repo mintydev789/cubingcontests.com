@@ -108,6 +108,18 @@ function NavbarItems() {
                     Rankings
                   </Link>
                 </li>
+                {process.env.NEXT_PUBLIC_EXPORTS_TO_KEEP && process.env.NEXT_PUBLIC_EXPORTS_TO_KEEP !== "0" && (
+                  <li>
+                    <Link
+                      className={`nav-link ${pathname === "/export" ? "active" : ""}`}
+                      href="/export"
+                      prefetch={false}
+                      onClick={collapseAll}
+                    >
+                      Exports
+                    </Link>
+                  </li>
+                )}
               </ul>
             </li>
             <li className="nav-item">

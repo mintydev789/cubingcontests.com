@@ -295,7 +295,7 @@ describe(getAttempt.name, () => {
 
     it("disallows unknown time for Multi-Blind", () => {
       expect(
-        getAttempt(dummyAtt, mockMultiEvent, "24000000", {
+        getAttempt(dummyAtt, mockMultiEvent, C.maxTimeHumanReadable, {
           solved: 36,
           attempted: 36,
         }).result,
@@ -304,7 +304,7 @@ describe(getAttempt.name, () => {
 
     it("parses Multi-Blind Old Style attempt with unknown time correctly", () => {
       expect(
-        getAttempt(dummyAtt, mockOldStyleEvent, "24000000", {
+        getAttempt(dummyAtt, mockOldStyleEvent, C.maxTimeHumanReadable, {
           solved: 36,
           attempted: 36,
         }).result,

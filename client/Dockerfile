@@ -22,7 +22,9 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 ARG NEXT_PUBLIC_BASE_URL
+ARG NEXT_PUBLIC_PROJECT_NAME
 ARG NEXT_PUBLIC_CONTACT_EMAIL
+ARG NEXT_PUBLIC_EXPORTS_TO_KEEP
 ARG NEXT_PUBLIC_STORAGE_PUBLIC_BUCKET_BASE_URL
 
 # Next.js collects completely anonymous telemetry data about general usage.

@@ -26,7 +26,7 @@ async function RulesLayout({ children }: Props) {
   const [eventsWithRules, eventsOnlyWithDescriptions] = await Promise.all([eventsPromise1, eventsPromise2]);
 
   return (
-    <div>
+    <section>
       <h2 className="mb-4 text-center">Rules</h2>
 
       {children}
@@ -79,7 +79,7 @@ async function RulesLayout({ children }: Props) {
           license.
         </p>
       </div>
-    </div>
+    </section>
   );
 }
 

@@ -26,7 +26,7 @@ export async function GET(
   const topN = searchParams.get("topN");
 
   const event = await db.query.events.findFirst({ where: { eventId } });
-  if (!event) return new Response(`Event with ID ${eventId} not found`);
+  if (!event) return new Response(`Event with ID ${eventId} not found`, { status: 400 });
 
   const rankings = await getRankings(event, singleOrAvg === "single" ? "best" : "average", recordCategory, {
     show: show ?? undefined,

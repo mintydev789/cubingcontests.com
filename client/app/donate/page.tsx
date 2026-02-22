@@ -2,7 +2,7 @@ import { C } from "~/helpers/constants.ts";
 
 function DonatePage() {
   return (
-    <div className="px-3">
+    <section className="px-3">
       <h1 className="mb-4 text-center">Donate</h1>
       <p>
         If you would like to support the development and maintenance of Cubing Contests, you can use one of the donation
@@ -35,7 +35,7 @@ function DonatePage() {
       <h3 className="cc-basic-heading">Monero</h3>
       <p>You can send a Monero (cryptocurrency) donation to the following XMR wallet:</p>
       <p className="fw-bold mt-4 rounded-3 border p-3">{C.moneroDonationAddress}</p>
-    </div>
+    </section>
   );
 }
 

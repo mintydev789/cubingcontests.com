@@ -12,15 +12,7 @@ import type { SelectPerson } from "./persons.ts";
 import { roundsTable } from "./rounds.ts";
 
 export type Attempt = {
-  /**
-   * Number of centiseconds; 0 is a skipped attempt (e.g. when cutoff was not met) -1 is DNF, -2 is DNS,
-   * C.maxTime is unknown time. For FMC it's the number of moves. For MBLD it works completely differently:
-   * https://www.worldcubeassociation.org/export/results
-   *
-   * The difference is that CC omits the leading 0/1 character, allows multi results up to 9999 cubes instead of 99,
-   * time is stored as centiseconds, and it stores DNFs with all of the same information (e.g. DNF (5/12 52:13))
-   * (they're just stored as negative numbers).
-   */
+  // The result format is described in the exports README
   result: number;
   memo?: number;
 };

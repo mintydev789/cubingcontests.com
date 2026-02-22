@@ -82,7 +82,7 @@ async function RankingsPage({ params, searchParams }: Props) {
 
   const visibleEvents = events.filter((e) => e.category !== "removed" && !e.hidden);
   const event = events.find((e) => e.eventId === eventId);
-  if (!event) return <p className="fs-4 mt-5 text-center">Event not found</p>;
+  if (!event) return <p className="fs-4 mx-3 mt-5 text-center">Event not found</p>;
   const recordCategory =
     category ??
     (event.category === "extreme-bld" || (event.category !== "unofficial" && event.submissionsAllowed)

@@ -21,8 +21,8 @@ async function HomePage() {
     .limit(1);
 
   return (
-    <div className="px-3">
-      <h1 className="mb-4 text-center">Cubing Contests</h1>
+    <section className="px-3">
+      <h1 className="mb-4 text-center">{process.env.NEXT_PUBLIC_PROJECT_NAME}</h1>
 
       <div className="alert alert-warning mb-4" role="alert">
         The website just received a major update! Read our{" "}
@@ -97,7 +97,7 @@ async function HomePage() {
       <h3 className="cc-basic-heading">Collective Cubing</h3>
 
       <CollectiveCubing initCollectiveSolution={collectiveSolution ?? null} />
-    </div>
+    </section>
   );
 }
 

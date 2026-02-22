@@ -1,5 +1,6 @@
 import { differenceInDays, isSameDay, isSameMonth, isSameYear, startOfDay } from "date-fns";
 import { formatInTimeZone, fromZonedTime, toZonedTime } from "date-fns-tz";
+import snakeCase from "lodash/snakeCase";
 import type { SafeActionResult } from "next-safe-action";
 import { remove as removeAccents } from "remove-accents";
 import z from "zod";
@@ -120,7 +121,7 @@ export function getAttempt(
   if (event.format === "multi" && newAttempt.result) {
     if (typeof solved !== "number" || typeof attempted !== "number" || solved > attempted) return { result: NaN };
 
-    const maxTime = Math.min(attempted, 6) * 60000 + attempted * 200; // accounts for +2s
+    const maxTime = Math.min(attempted, 6) * 10 * 60 * 100 + attempted * 2 * 100; // accounts for +2s
 
     // Disallow submitting multi times > max time, and <= 1 hour for old style
     if (
@@ -130,7 +131,7 @@ export function getAttempt(
       return { ...newAttempt, result: NaN };
     }
 
-    // See the IResult interface for information about how this works
+    // See the exports README for information about how this works
     let multiOutput = ""; // DDDDTTTTTTTMMMM
     const missed: number = attempted - solved;
     let points: number = solved - missed;
@@ -155,8 +156,8 @@ export function getContestIdFromName(name: string): string {
   const parts = output.split(" ");
 
   output = parts
-    .filter((el) => el !== "")
-    .map((el) => el[0].toUpperCase() + el.slice(1))
+    .filter((part) => part !== "")
+    .map((part) => part[0].toUpperCase() + part.slice(1))
     .join("");
 
   return output;
@@ -571,12 +572,12 @@ export function generateCsv(data: any[]): string {
   const dataRows = data.map((item) =>
     headers
       .map((key) => {
-        const val =
-          item[key] instanceof Date
-            ? item[key].toISOString()
-            : typeof item[key] === "object"
-              ? JSON.stringify(item[key])
-              : String(item[key]);
+        let val: string;
+        if (item[key] === null) val = "";
+        else if (item[key] instanceof Date) val = item[key].toISOString();
+        else if (typeof item[key] === "object") val = JSON.stringify(item[key]);
+        else if (typeof item[key] === "boolean") val = String(item[key]).toUpperCase();
+        else val = String(item[key]);
 
         // Escape special characters
         return /("|,|\n|\r)/.test(val) ? `"${val.replace(/"/g, '""')}"` : val;
@@ -584,5 +585,5 @@ export function generateCsv(data: any[]): string {
       .join(","),
   );
 
-  return [headers.join(","), ...dataRows].join("\n");
+  return [headers.map((key) => snakeCase(key)).join(","), ...dataRows].join("\n");
 }
