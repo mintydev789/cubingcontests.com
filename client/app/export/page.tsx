@@ -18,7 +18,7 @@ async function ExportPage() {
   const { publicUrl, fileName, exportDate } = latestExportDetails.data;
 
   return (
-    <section>
+    <section className="px-3">
       <h2 className="mb-4 text-center">Public Exports</h2>
 
       <p>

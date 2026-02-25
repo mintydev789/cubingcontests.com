@@ -309,20 +309,17 @@ export const finishContestSF = actionClient
       // Check there are no rounds with no results or subsequent rounds with fewer results than the minimum proceed number
       const roundsPromise = db.query.rounds.findMany({ where: { competitionId } });
       const resultsPromise = db.query.results.findMany({ where: { competitionId } });
-      const creatorPersonPromise = db.query.persons.findFirst({
-        columns: { name: true },
-        where: { id: user.personId! },
-      });
-      const organizerUsersPromise = db.query.users.findMany({
-        columns: { email: true },
-        where: { personId: { in: contest.organizerIds } },
-      });
 
-      const [rounds, results, creatorPerson, organizerUsers] = await Promise.all([
+      const [rounds, results, creatorUser, organizerUsers] = await Promise.all([
         roundsPromise,
         resultsPromise,
-        creatorPersonPromise,
-        organizerUsersPromise,
+        contest.createdBy
+          ? db.query.users.findFirst({ columns: { personId: true }, where: { id: contest.createdBy } })
+          : undefined,
+        db.query.users.findMany({
+          columns: { email: true },
+          where: { personId: { in: contest.organizerIds } },
+        }),
       ]);
 
       // Check there are no rounds with too few results
@@ -332,11 +329,13 @@ export const finishContestSF = actionClient
         if (roundResults.length === 0 || (roundNumber > 1 && roundResults.length < C.minProceedNumber)) {
           const event = (await db.query.events.findFirst({ columns: { name: true }, where: { eventId } }))!;
 
-          if (roundResults.length === 0) throw new RrActionError(`${event.name} round ${roundNumber} has no results`);
-          else
+          if (roundResults.length === 0) {
+            throw new RrActionError(`${event.name} round ${roundNumber} has no results`);
+          } else {
             throw new RrActionError(
               `${event.name} round ${roundNumber} has fewer than ${C.minProceedNumber} results (see WCA regulation 9q+)`,
             );
+          }
         }
       }
 
@@ -360,6 +359,10 @@ export const finishContestSF = actionClient
 
         await tx.update(roundsTable).set({ open: false }).where(eq(roundsTable.competitionId, competitionId));
       });
+
+      const creatorPerson = creatorUser
+        ? await db.query.persons.findFirst({ columns: { name: true }, where: { id: creatorUser.personId! } })
+        : undefined;
 
       sendContestFinishedEmail(
         organizerUsers.map((u) => u.email),
