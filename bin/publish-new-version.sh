@@ -1,5 +1,10 @@
 #!/bin/bash
 
+if [ "$(pwd | tail -c 5)" == "/bin" ]; then
+  echo "Please run this script from the repo's root directory"
+  exit 1
+fi
+
 if [ -z "$1" ] || [ "$1" != "--no-checks" ]; then
   cd client
   pnpm run check &&
@@ -14,35 +19,21 @@ if [ $? -gt 0 ]; then
   exit
 fi
 
-git tag | sort -t "." -k1,1n -k2,2n -k3,3n -k4,4n | tail
-echo "Please give the new version tag:"
+cyan='\033[0;36m'
+nc='\033[0m' # no color
+
+git tag | sort -t "." -k1,1n -k2,2n -k3,3n | tail
+echo -e "${cyan}Please give the new version tag:${nc}"
 read new_version
 
-if [ -z "$1" ] || [ "$1" != '--no-git' ]; then
-  echo "Pushing version $new_version to Github..."
-  git tag --force --annotate "$new_version" -m "Version $new_version" &&
-  git push --force origin --tags
-fi
+echo -e "${cyan}Pushing version $new_version to Github...${nc}"
+git tag --force --annotate "$new_version" -m "Version $new_version" &&
+git push --force origin --tags &&
+git push
 
-if [ -z "$1" ] || [ "$1" != '--no-docker' ]; then
-  echo -e "\nPushing to Dockerhub"
-  docker login
+echo -e "\n${cyan}Release new Docker image? (y/N)\n"
+read answer
 
-  source .env # needed for the build args
-
-  # Build Next JS container
-  docker build --build-arg NEXT_PUBLIC_BASE_URL="https://$PROD_HOSTNAME" \
-               --build-arg NEXT_PUBLIC_PROJECT_NAME="$NEXT_PUBLIC_PROJECT_NAME" \
-               --build-arg NEXT_PUBLIC_CONTACT_EMAIL="$NEXT_PUBLIC_CONTACT_EMAIL" \
-               --build-arg NEXT_PUBLIC_EXPORTS_TO_KEEP="$NEXT_PUBLIC_EXPORTS_TO_KEEP" \
-               --build-arg NEXT_PUBLIC_STORAGE_PUBLIC_BUCKET_BASE_URL="$NEXT_PUBLIC_STORAGE_PUBLIC_BUCKET_BASE_URL" \
-               -t "$DOCKER_IMAGE_NAME:$new_version" ./client &&
-
-  docker tag "$DOCKER_IMAGE_NAME:$new_version"  "$DOCKER_IMAGE_NAME:latest" &&
-  docker push "$DOCKER_IMAGE_NAME:$new_version"  &&
-  docker push "$DOCKER_IMAGE_NAME:latest"
-fi
-
-if [ $? == 0 ]; then
-  echo -e "\nDone!"
+if [ "$answer" == "y" ] || [ "$answer" == "Y" ]; then
+  ./bin/release-new-image.sh
 fi
