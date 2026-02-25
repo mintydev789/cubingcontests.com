@@ -23,10 +23,10 @@ cyan='\033[0;36m'
 nc='\033[0m' # no color
 
 git tag | sort -t "." -k1,1n -k2,2n -k3,3n | tail
-echo -e "${cyan}Please give the new version tag:${nc}"
+echo -e "\n${cyan}Please give the new version tag:${nc}"
 read new_version
 
-echo -e "${cyan}Pushing version $new_version to Github...${nc}"
+echo -e "\n${cyan}Pushing version $new_version to Github...${nc}"
 git tag --force --annotate "$new_version" -m "Version $new_version" &&
 git push --force origin --tags &&
 git push

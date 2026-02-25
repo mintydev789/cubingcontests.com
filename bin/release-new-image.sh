@@ -14,7 +14,7 @@ docker build --build-arg NEXT_PUBLIC_BASE_URL="https://$PROD_HOSTNAME" \
              --build-arg NEXT_PUBLIC_PROJECT_NAME="$NEXT_PUBLIC_PROJECT_NAME" \
              --build-arg NEXT_PUBLIC_CONTACT_EMAIL="$NEXT_PUBLIC_CONTACT_EMAIL" \
              --build-arg NEXT_PUBLIC_EXPORTS_TO_KEEP="$NEXT_PUBLIC_EXPORTS_TO_KEEP" \
-             --build-arg NEXT_PUBLIC_STORAGE_PUBLIC_BUCKET_BASE_URL="$NEXT_PUBLIC_STORAGE_PUBLIC_BUCKET_BASE_URL" \
+             --build-arg NEXT_PUBLIC_STORAGE_PUBLIC_BUCKET_BASE_URL="https://supabase.$PROD_HOSTNAME/storage/v1/object/public/$PUBLIC_BUCKET_NAME" \
              -t "$DOCKER_IMAGE_NAME:$version" ./client &&
 
 docker tag "$DOCKER_IMAGE_NAME:$version" "$DOCKER_IMAGE_NAME:latest" &&
