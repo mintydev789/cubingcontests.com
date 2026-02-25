@@ -31,7 +31,7 @@ git tag --force --annotate "$new_version" -m "Version $new_version" &&
 git push --force origin --tags &&
 git push
 
-echo -e "\n${cyan}Release new Docker image? (y/N)\n"
+echo -e "\n${cyan}Release new Docker image? (y/N)${nc}"
 read answer
 
 if [ "$answer" == "y" ] || [ "$answer" == "Y" ]; then
