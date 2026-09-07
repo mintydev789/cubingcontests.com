@@ -7,17 +7,20 @@ import { useContext, useEffect, useRef, useState } from "react";
 import CreatorDetails from "~/app/components/CreatorDetails.tsx";
 import Form from "~/app/components/form/Form.tsx";
 import FormCheckbox from "~/app/components/form/FormCheckbox.tsx";
+import FormPersonInputs from "~/app/components/form/FormPersonInputs.tsx";
 import FormRegionSelect from "~/app/components/form/FormRegionSelect.tsx";
 import FormTextInput from "~/app/components/form/FormTextInput.tsx";
+import Button from "~/app/components/UI/Button.tsx";
 import { C } from "~/helpers/constants.ts";
 import { MainContext } from "~/helpers/contexts.ts";
-import type { Creator } from "~/helpers/types.ts";
+import type { Creator, InputPerson } from "~/helpers/types.ts";
 import { getActionError } from "~/helpers/utility-functions.ts";
 import type { PersonDto } from "~/helpers/validators/Person.ts";
 import type { PersonResponse, SelectPerson } from "~/server/db/schema/persons.ts";
 import {
   createPersonSF,
   getOrCreatePersonByWcaIdSF,
+  mergePersonsSF,
   updatePersonSF,
 } from "~/server/server-functions/person-server-functions.ts";
 
@@ -28,9 +31,20 @@ type Props = {
   onSubmitError?: () => void;
   onCancel?: () => void;
   wcaIdInputHidden?: boolean;
+  canApprove?: boolean;
+  onMerged?: (survivor: SelectPerson, deletedId: number) => void;
 };
 
-function PersonForm({ personUnderEdit, creator, onSubmit, onSubmitError, onCancel, wcaIdInputHidden }: Props) {
+function PersonForm({
+  personUnderEdit,
+  creator,
+  onSubmit,
+  onSubmitError,
+  onCancel,
+  wcaIdInputHidden,
+  canApprove,
+  onMerged,
+}: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { changeErrorMessages, changeSuccessMessage, resetMessages } = useContext(MainContext);
@@ -39,6 +53,7 @@ function PersonForm({ personUnderEdit, creator, onSubmit, onSubmitError, onCance
   const { executeAsync: getOrCreateWcaPerson, isPending: isGettingOrCreatingWcaPerson } =
     useAction(getOrCreatePersonByWcaIdSF);
   const { executeAsync: updatePerson, isPending: isUpdating } = useAction(updatePersonSF);
+  const { executeAsync: mergePersons, isPending: isMerging } = useAction(mergePersonsSF);
   const [name, setName] = useState(personUnderEdit?.name ?? "");
   const [localizedName, setLocalizedName] = useState(personUnderEdit?.localizedName ?? "");
   const [wcaId, setWcaId] = useState(personUnderEdit?.wcaId ?? "");
@@ -48,7 +63,12 @@ function PersonForm({ personUnderEdit, creator, onSubmit, onSubmitError, onCance
   // If the person is submitted again with no changes, the request will be sent with ignoreDuplicate=true.
   const isConfirmation = useRef(false);
 
-  const isPending = isCreating || isGettingOrCreatingWcaPerson || isUpdating;
+  // Merge state
+  const [showMergeUI, setShowMergeUI] = useState(false);
+  const [mergePersonsList, setMergePersonsList] = useState<InputPerson[]>([null]);
+  const [mergePersonNames, setMergePersonNames] = useState<string[]>([""]);
+
+  const isPending = isCreating || isGettingOrCreatingWcaPerson || isUpdating || isMerging;
 
   useEffect(() => {
     if (isConfirmation.current) isConfirmation.current = false;
@@ -147,6 +167,35 @@ function PersonForm({ personUnderEdit, creator, onSubmit, onSubmitError, onCance
     if (!exceptWcaId) setWcaId("");
   };
 
+  const handleMerge = async () => {
+    const targetPerson = mergePersonsList[0];
+    if (!targetPerson) {
+      changeErrorMessages(["Please select a person to merge with"]);
+      return;
+    }
+    if (targetPerson.id === personUnderEdit!.id) {
+      changeErrorMessages(["You cannot merge a person with themselves"]);
+      return;
+    }
+
+    resetMessages();
+    const res = await mergePersons({
+      sourcePersonId: personUnderEdit!.id,
+      targetPersonId: targetPerson.id,
+    });
+
+    if (res.serverError || res.validationErrors) {
+      changeErrorMessages([getActionError(res)]);
+    } else {
+      const survivor = res.data!;
+      // The server decides which person survives based on createdAt, not which was source/target
+      const deletedId = survivor.id === personUnderEdit!.id ? targetPerson.id : personUnderEdit!.id;
+      changeSuccessMessage(`Successfully merged person ID ${deletedId} into person ID ${survivor.id}`);
+      setShowMergeUI(false);
+      onMerged?.(survivor, deletedId);
+    }
+  };
+
   return (
     <Form
       onSubmit={handleSubmit}
@@ -164,6 +213,53 @@ function PersonForm({ personUnderEdit, creator, onSubmit, onSubmitError, onCance
         />
       )}
       {personUnderEdit && <p>ID: {personUnderEdit.id}</p>}
+      {personUnderEdit && canApprove && !showMergeUI && (
+        <Button
+          onClick={() => {
+            resetMessages();
+            setShowMergeUI(true);
+          }}
+          disabled={isPending}
+          className="btn-warning btn-sm mb-3"
+        >
+          Merge with another person
+        </Button>
+      )}
+      {showMergeUI && (
+        <div className="mb-4 rounded border bg-light p-3">
+          <h5 className="mb-2">Merge another person into this profile</h5>
+          <p className="small mb-3 text-muted">
+            Select the person (B) to merge into this person (A). The person with the earlier creation date will be kept.
+          </p>
+          <FormPersonInputs
+            title="Person to merge"
+            persons={mergePersonsList}
+            setPersons={setMergePersonsList}
+            personNames={mergePersonNames}
+            setPersonNames={setMergePersonNames}
+            addNewPersonMode="disabled"
+            display="default"
+            disabled={isMerging}
+          />
+          <div className="d-flex mt-2 gap-2">
+            <Button onClick={handleMerge} isLoading={isMerging} disabled={isPending} className="btn-warning btn-sm">
+              Merge
+            </Button>
+            <Button
+              onClick={() => {
+                setShowMergeUI(false);
+                setMergePersonsList([null]);
+                setMergePersonNames([""]);
+                resetMessages();
+              }}
+              disabled={isPending}
+              className="btn-secondary btn-sm"
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
       {!wcaIdInputHidden && (
         <>
           <FormTextInput

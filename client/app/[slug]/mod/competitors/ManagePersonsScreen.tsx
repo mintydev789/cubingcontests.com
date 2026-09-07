@@ -199,6 +199,14 @@ function ManagePersonsScreen({ personsData: initPersonsData, creators }: Props) 
     }
   };
 
+  const onMerged = (survivor: SelectPerson, deletedId: number) => {
+    const entries = personsData.entries
+      .filter((p) => p.id !== deletedId)
+      .map((p) => (p.id === survivor.id ? survivor : p));
+    mutate({ entries, totalEntries: personsData.totalEntries - 1 }, { revalidate: false });
+    setMode("view");
+  };
+
   return (
     <>
       <ToastMessages className="mx-2" />
@@ -219,6 +227,8 @@ function ManagePersonsScreen({ personsData: initPersonsData, creators }: Props) 
           onSubmit={updateCompetitors}
           onCancel={mode !== "add-once" ? cancel : undefined}
           wcaIdInputHidden={spaceType !== "speedcubing"}
+          canApprove={canApprovePersons}
+          onMerged={onMerged}
         />
       )}
 

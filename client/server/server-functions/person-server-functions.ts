@@ -444,6 +444,118 @@ export const approvePersonSF = actionClient
     return approvedPerson;
   });
 
+export const mergePersonsSF = actionClient
+  // Permissions checked below
+  .metadata({ auth: { useOrganization: true } })
+  .inputSchema(
+    z.strictObject({
+      sourcePersonId: z.int().min(1), // Person A (the one being edited, kept after merge)
+      targetPersonId: z.int().min(1), // Person B (merged into A, then deleted)
+    }),
+  )
+  .action<SelectPerson>(async ({ parsedInput: { sourcePersonId, targetPersonId }, ctx: { session, httpHeaders } }) => {
+    logMessage("RR0023", `Merging person ID ${targetPersonId} into person ID ${sourcePersonId}`);
+
+    const { success: canApprove } = await auth.api.hasPermission({
+      headers: httpHeaders,
+      body: { permissions: { persons: ["approve"] } },
+    });
+    if (!canApprove) throw new RrActionError("You are unauthorized to merge person profiles");
+
+    if (sourcePersonId === targetPersonId) throw new RrActionError("You cannot merge a person with themselves");
+
+    // Fetch both persons scoped to the organization — throws if either isn't found
+    const [personA, personB] = await Promise.all([
+      db.query.persons.findFirst({ where: { organizationId: session.organization!.id, id: sourcePersonId } }),
+      db.query.persons.findFirst({ where: { organizationId: session.organization!.id, id: targetPersonId } }),
+    ]);
+    if (!personA) throw new RrActionError("Source person not found");
+    if (!personB) throw new RrActionError("Target person not found");
+
+    // Validation 1: Both persons can't have WCA IDs (one can, but not two)
+    if (personA.wcaId && personB.wcaId) {
+      throw new RrActionError("Both persons have WCA IDs. At most one can have a WCA ID for a merge.");
+    }
+
+    // Validation 2: They must be from the same country (regionCode)
+    if (personA.regionCode !== personB.regionCode) {
+      throw new RrActionError("Both persons must be from the same country to be merged.");
+    }
+
+    // Validation 3: Neither can be linked to a member profile or member request
+    for (const [person, label] of [
+      [personA, "Person A"],
+      [personB, "Person B"],
+    ] as const) {
+      const member = await db.query.members.findFirst({ where: { personId: person.id } });
+      if (member)
+        throw new RrActionError(
+          `${label} (${person.name}, ID: ${person.id}) is linked to a member profile and cannot be merged.`,
+        );
+
+      const memberRequest = await db.query.memberRequests.findFirst({ where: { requestedPersonId: person.id } });
+      if (memberRequest)
+        throw new RrActionError(
+          `${label} (${person.name}, ID: ${person.id}) is linked to a member request and cannot be merged.`,
+        );
+    }
+
+    // Determine which person is A (earlier createdAt) and which is B (merged into A)
+    // The sourcePersonId from the client is the person being edited, but per spec,
+    // the person with the earlier createdAt becomes A (the survivor).
+    let survivor = personA;
+    let merged = personB;
+
+    if (personB.createdAt < personA.createdAt) {
+      survivor = personB;
+      merged = personA;
+    }
+
+    const survivorId = survivor.id;
+    const mergedId = merged.id;
+
+    return await db.transaction(async (tx) => {
+      // 1. Replace mergedId with survivorId in all results.personIds arrays
+      await tx.execute(
+        sql`UPDATE ${resultsTable}
+            SET ${resultsTable.personIds} = (
+              SELECT array_agg(CASE WHEN elem = ${mergedId} THEN ${survivorId} ELSE elem END)
+              FROM unnest(${resultsTable.personIds}) AS elem
+            )
+            WHERE ${resultsTable.organizationId} = ${session.organization!.id}
+              AND ${mergedId} = ANY(${resultsTable.personIds})`,
+      );
+
+      // 2. Replace mergedId with survivorId in all contests.organizerIds arrays
+      await tx.execute(
+        sql`UPDATE ${contestsTable}
+            SET ${contestsTable.organizerIds} = (
+              SELECT array_agg(CASE WHEN elem = ${mergedId} THEN ${survivorId} ELSE elem END)
+              FROM unnest(${contestsTable.organizerIds}) AS elem
+            )
+            WHERE ${contestsTable.organizationId} = ${session.organization!.id}
+              AND ${mergedId} = ANY(${contestsTable.organizerIds})`,
+      );
+
+      // 3. If survivor doesn't have a WCA ID but merged does, set it
+      const updateObj: Partial<typeof table.$inferInsert> = {};
+      if (!survivor.wcaId && merged.wcaId) updateObj.wcaId = merged.wcaId;
+      // 4. If survivor doesn't have a localizedName but merged does, set it
+      if (!survivor.localizedName && merged.localizedName) updateObj.localizedName = merged.localizedName;
+
+      if (Object.keys(updateObj).length > 0) {
+        await tx.update(table).set(updateObj).where(eq(table.id, survivorId));
+      }
+
+      // 5. Delete the merged person (approved, createdBy, createdExternally stay as survivor's — no change needed)
+      await tx.delete(table).where(eq(table.id, mergedId));
+
+      // Return the survivor (re-fetch to get updated values)
+      const [updatedSurvivor] = await tx.select().from(table).where(eq(table.id, survivorId));
+      return updatedSurvivor;
+    });
+  });
+
 async function validatePerson(
   organizationId: string,
   newPersonDto: PersonDto,
